@@ -5,7 +5,7 @@ import LiveSession from './components/LiveSession';
 import AdminDashboard from './components/AdminDashboard';
 import ReportView from './components/ReportView';
 import { InterviewConfig, TranscriptItem, InterviewReport, NonVerbalSnapshot } from './types';
-import { generateInterviewReport } from './services/geminiService';
+import { generateInterviewReport } from './services/claudeService';
 import { saveReport } from './services/storageService';
 import { saveVideo } from './services/db';
 import { Loader2, CheckCircle } from 'lucide-react';
@@ -18,7 +18,6 @@ const App: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState<InterviewReport | null>(null);
 
   // --- Navigation Handlers ---
-
   const handleSelectRole = (role: 'CANDIDATE' | 'ENTERPRISE') => {
     if (role === 'CANDIDATE') {
       setCurrentState('CANDIDATE_JOB_LIST');

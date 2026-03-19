@@ -1,0 +1,8 @@
+{
+  "name": "AI Interview Simulator (Taiwan Edition)",
+  "description": "A real-time, multimodal interview practice tool optimized for Taiwanese corporate contexts. Features custom personas, mandatory questions, and detailed AI feedback.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

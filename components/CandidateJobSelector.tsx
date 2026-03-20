@@ -13,13 +13,17 @@ const CandidateJobSelector: React.FC<CandidateJobSelectorProps> = ({ onStartInte
   const [selectedJob, setSelectedJob] = useState<JobProfile | null>(null);
   const [candidateName, setCandidateName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Resume State
   const [resumeFile, setResumeFile] = useState<{ name: string; type: string; data: string } | null>(null);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
 
   useEffect(() => {
-    setJobs(getJobs());
+    const loadJobs = async () => {
+      const data = await getJobs();
+      setJobs(data);
+    };
+    loadJobs();
   }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,7 +41,6 @@ const CandidateJobSelector: React.FC<CandidateJobSelectorProps> = ({ onStartInte
         const reader = new FileReader();
         reader.onload = () => {
            const result = reader.result as string;
-           // Remove data URL prefix (e.g., "data:application/pdf;base64,")
            const base64String = result.split(',')[1];
            resolve(base64String);
         };
@@ -74,7 +77,7 @@ const CandidateJobSelector: React.FC<CandidateJobSelectorProps> = ({ onStartInte
       voiceName: selectedJob.voiceName,
       mandatoryQuestions: selectedJob.questions,
       candidateName: candidateName,
-      durationMinutes: 15, // Default duration
+      durationMinutes: 15,
       resume: resumeFile ? {
         mimeType: resumeFile.type,
         data: resumeFile.data,
@@ -85,30 +88,32 @@ const CandidateJobSelector: React.FC<CandidateJobSelectorProps> = ({ onStartInte
     onStartInterview(config);
   };
 
-  const filteredJobs = jobs.filter(j => 
-    j.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredJobs = jobs.filter(j =>
+    j.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     j.companyName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="h-full bg-slate-50 overflow-y-auto">
+    <div className="h-full bg-noir-950 overflow-y-auto scroll-elegant">
       {/* Modal for Name Input & Resume */}
       {selectedJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-bold text-slate-800 mb-2">準備開始面試</h3>
-            <p className="text-slate-500 mb-6 text-sm">
-              您即將應徵 <strong>{selectedJob.companyName}</strong> 的 <strong>{selectedJob.title}</strong> 職位。
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-noir-950/80 p-4 backdrop-blur-lg">
+          <div className="glass glow-amber rounded-2xl p-8 max-w-md w-full animate-fade-up flex flex-col max-h-[90vh] overflow-y-auto scroll-elegant">
+            <div className="absolute top-0 left-6 right-6 h-px shimmer-border"></div>
+
+            <h3 className="font-display text-2xl font-bold text-noir-50 mb-2">準備開始面試</h3>
+            <p className="text-noir-400 mb-8 text-sm">
+              您即將應徵 <span className="text-amber-400 font-medium">{selectedJob.companyName}</span> 的 <span className="text-amber-400 font-medium">{selectedJob.title}</span> 職位。
             </p>
-            
+
             <div className="space-y-6 mb-8">
               {/* Name Input */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">請問您的姓名是？</label>
-                <input 
+                <label className="block text-xs font-medium text-noir-400 mb-2 tracking-widest uppercase">請問您的姓名是？</label>
+                <input
                   autoFocus
-                  type="text" 
-                  className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500"
+                  type="text"
+                  className="w-full bg-noir-900/50 border border-noir-700/50 rounded-lg p-3.5 outline-none text-noir-100 placeholder-noir-600 transition-all duration-300 input-noir focus:border-amber-500/30"
                   placeholder="Ex: 王小明"
                   value={candidateName}
                   onChange={e => setCandidateName(e.target.value)}
@@ -117,42 +122,42 @@ const CandidateJobSelector: React.FC<CandidateJobSelectorProps> = ({ onStartInte
 
               {/* Resume Upload */}
               <div>
-                 <label className="block text-sm font-medium text-slate-700 mb-2">上傳履歷 (選填)</label>
-                 
+                 <label className="block text-xs font-medium text-noir-400 mb-2 tracking-widest uppercase">上傳履歷 (選填)</label>
+
                  {!resumeFile ? (
-                   <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:bg-slate-50 transition-colors relative">
-                      <input 
-                        type="file" 
-                        accept="application/pdf,image/*" 
+                   <div className="border border-dashed border-noir-600/50 rounded-xl p-8 text-center hover:border-amber-500/30 hover:bg-amber-500/5 transition-all duration-300 relative cursor-pointer">
+                      <input
+                        type="file"
+                        accept="application/pdf,image/*"
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         onChange={handleFileChange}
                       />
-                      <div className="flex flex-col items-center justify-center text-slate-400">
+                      <div className="flex flex-col items-center justify-center text-noir-500">
                          {isProcessingFile ? (
-                           <span>處理中...</span>
+                           <span className="text-amber-400">處理中...</span>
                          ) : (
                            <>
-                             <Upload size={24} className="mb-2 text-slate-400" />
-                             <span className="text-sm font-medium text-slate-600">點擊上傳檔案</span>
-                             <span className="text-xs mt-1">支援 PDF 或 圖片 (JPG, PNG)</span>
+                             <Upload size={24} className="mb-3 text-noir-500" />
+                             <span className="text-sm font-medium text-noir-300">點擊上傳檔案</span>
+                             <span className="text-xs mt-1 text-noir-600">支援 PDF 或 圖片 (JPG, PNG)</span>
                            </>
                          )}
                       </div>
                    </div>
                  ) : (
-                   <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3">
+                   <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
                       <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
+                        <div className="bg-amber-500/20 p-2 rounded-lg text-amber-400">
                           <FileText size={20} />
                         </div>
                         <div className="flex flex-col min-w-0">
-                           <span className="text-sm font-bold text-slate-700 truncate">{resumeFile.name}</span>
-                           <span className="text-xs text-slate-500">{resumeFile.type.split('/')[1].toUpperCase()}</span>
+                           <span className="text-sm font-bold text-noir-200 truncate">{resumeFile.name}</span>
+                           <span className="text-xs text-noir-500">{resumeFile.type.split('/')[1].toUpperCase()}</span>
                         </div>
                       </div>
-                      <button 
+                      <button
                         onClick={() => setResumeFile(null)}
-                        className="text-slate-400 hover:text-red-500 p-1"
+                        className="text-noir-500 hover:text-red-400 p-1 transition-colors"
                       >
                         <X size={18} />
                       </button>
@@ -162,16 +167,16 @@ const CandidateJobSelector: React.FC<CandidateJobSelectorProps> = ({ onStartInte
             </div>
 
             <div className="flex gap-3 mt-auto">
-              <button 
+              <button
                 onClick={() => setSelectedJob(null)}
-                className="flex-1 py-3 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold transition-colors"
+                className="flex-1 py-3.5 text-noir-400 bg-noir-800/50 hover:bg-noir-700/50 border border-noir-700/50 rounded-xl font-semibold transition-all duration-300"
               >
                 取消
               </button>
-              <button 
+              <button
                 onClick={handleStart}
                 disabled={isProcessingFile}
-                className="flex-1 py-3 bg-blue-600 text-white hover:bg-blue-700 rounded-xl font-semibold shadow-lg shadow-blue-200 transition-all disabled:opacity-50"
+                className="flex-1 py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 text-noir-950 hover:from-amber-400 hover:to-amber-500 rounded-xl font-bold shadow-lg shadow-amber-500/10 transition-all duration-300 disabled:opacity-50"
               >
                 進入面試室
               </button>
@@ -180,21 +185,21 @@ const CandidateJobSelector: React.FC<CandidateJobSelectorProps> = ({ onStartInte
         </div>
       )}
 
-      <div className="max-w-5xl mx-auto p-6">
-        <div className="flex items-center gap-4 mb-8">
-           <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
+      <div className="max-w-5xl mx-auto p-8">
+        <div className="flex items-center gap-4 mb-10">
+           <button onClick={onBack} className="p-2 hover:bg-noir-800/50 rounded-full transition-colors text-noir-500 hover:text-amber-400">
              &larr; 返回首頁
            </button>
-           <h1 className="text-2xl font-bold text-slate-800">職缺列表</h1>
+           <h1 className="font-display text-3xl font-bold text-noir-50">職缺列表</h1>
         </div>
 
         {/* Search */}
-        <div className="relative mb-8">
-          <Search className="absolute left-4 top-3.5 text-slate-400" size={20} />
-          <input 
+        <div className="relative mb-10">
+          <Search className="absolute left-4 top-3.5 text-noir-600" size={20} />
+          <input
             type="text"
             placeholder="搜尋公司或職稱..."
-            className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-noir-900/50 border border-noir-700/30 text-noir-100 placeholder-noir-600 transition-all duration-300 input-noir focus:border-amber-500/30 outline-none"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
@@ -203,33 +208,34 @@ const CandidateJobSelector: React.FC<CandidateJobSelectorProps> = ({ onStartInte
         {/* Job Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
            {filteredJobs.length === 0 ? (
-             <div className="col-span-full text-center py-20 text-slate-400">
+             <div className="col-span-full text-center py-20 text-noir-600">
                 {jobs.length === 0 ? "目前沒有任何開放的職缺。" : "找不到符合的職缺。"}
              </div>
            ) : (
-             filteredJobs.map(job => (
-               <div 
-                 key={job.id} 
+             filteredJobs.map((job, index) => (
+               <div
+                 key={job.id}
                  onClick={() => setSelectedJob(job)}
-                 className="group bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer flex flex-col h-full"
+                 className="group glass-light rounded-2xl p-6 hover:bg-white/[0.06] transition-all duration-500 cursor-pointer flex flex-col h-full animate-fade-up"
+                 style={{ animationDelay: `${index * 0.05}s` }}
                >
-                 <div className="flex items-start justify-between mb-4">
-                    <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
-                       <Building2 size={24} />
+                 <div className="flex items-start justify-between mb-5">
+                    <div className="w-12 h-12 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-center text-amber-400 group-hover:bg-amber-500/15 transition-all duration-500">
+                       <Building2 size={22} />
                     </div>
-                    <span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-1 rounded-full">
+                    <span className="text-xs font-mono font-medium bg-noir-800/50 text-noir-400 px-2.5 py-1 rounded-full border border-noir-700/30">
                        {job.questions.length} 題
                     </span>
                  </div>
-                 
-                 <h3 className="text-lg font-bold text-slate-800 mb-1 line-clamp-1">{job.title}</h3>
-                 <p className="text-sm text-blue-600 font-medium mb-4">{job.companyName}</p>
-                 
-                 <p className="text-slate-500 text-sm mb-6 line-clamp-3 flex-1">
+
+                 <h3 className="text-lg font-bold text-noir-100 mb-1 line-clamp-1">{job.title}</h3>
+                 <p className="text-sm text-amber-400 font-medium mb-4">{job.companyName}</p>
+
+                 <p className="text-noir-500 text-sm mb-6 line-clamp-3 flex-1 leading-relaxed">
                     {job.description}
                  </p>
 
-                 <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-blue-600 font-semibold text-sm group-hover:translate-x-1 transition-transform">
+                 <div className="pt-4 border-t border-noir-800/50 flex items-center justify-between text-amber-400 font-medium text-sm group-hover:translate-x-1 transition-transform duration-500">
                     <span>立即應徵</span>
                     <ChevronRight size={16} />
                  </div>

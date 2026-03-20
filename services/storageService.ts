@@ -1,35 +1,39 @@
 import { InterviewReport } from '../types';
+import { apiFetch } from './api';
 
-const STORAGE_KEY = 'ai_interview_reports';
+export const saveReport = async (report: Omit<InterviewReport, 'id'> & { id?: string; videoPath?: string; jobProfileId?: string }): Promise<InterviewReport> => {
+  const res = await apiFetch('/reports', {
+    method: 'POST',
+    body: JSON.stringify(report),
+  });
 
-export const saveReport = (report: InterviewReport): void => {
-  try {
-    const existingData = localStorage.getItem(STORAGE_KEY);
-    const reports: InterviewReport[] = existingData ? JSON.parse(existingData) : [];
-    reports.push(report);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
-  } catch (e) {
-    console.error("Failed to save report", e);
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || '儲存報告失敗');
   }
+
+  return res.json();
 };
 
-export const getAllReports = (): InterviewReport[] => {
-  try {
-    const existingData = localStorage.getItem(STORAGE_KEY);
-    return existingData ? JSON.parse(existingData) : [];
-  } catch (e) {
-    console.error("Failed to load reports", e);
+export const getAllReports = async (): Promise<InterviewReport[]> => {
+  const res = await apiFetch('/reports');
+
+  if (!res.ok) {
+    console.error('Failed to load reports');
     return [];
   }
+
+  return res.json();
 };
 
-export const getReportById = (id: string): InterviewReport | undefined => {
-  const reports = getAllReports();
-  return reports.find(r => r.id === id);
+export const getReportById = async (id: string): Promise<InterviewReport | undefined> => {
+  const res = await apiFetch(`/reports/${id}`);
+
+  if (!res.ok) return undefined;
+
+  return res.json();
 };
 
-export const deleteReport = (id: string): void => {
-  const reports = getAllReports();
-  const newReports = reports.filter(r => r.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(newReports));
+export const deleteReport = async (id: string): Promise<void> => {
+  await apiFetch(`/reports/${id}`, { method: 'DELETE' });
 };

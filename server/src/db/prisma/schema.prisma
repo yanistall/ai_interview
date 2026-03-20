@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CANDIDATE
+  ADMIN
+}
+
+enum Persona {
+  FRIENDLY_HR
+  STRICT_MANAGER
+  TECHNICAL_LEAD
+  EXECUTIVE
+}
+
+enum HiringRecommendation {
+  HIRE
+  CONSIDER
+  NO_HIRE
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  name          String
+  role          Role      @default(CANDIDATE)
+  resetToken    String?
+  resetTokenExp DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  jobs          JobProfile[]
+  reports       InterviewReport[]
+}
+
+model JobProfile {
+  id          String   @id @default(uuid())
+  companyName String
+  title       String
+  description String
+  persona     Persona
+  voiceName   String
+  questions   String[]
+  createdAt   DateTime @default(now())
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  reports     InterviewReport[]
+}
+
+model InterviewReport {
+  id                   String               @id @default(uuid())
+  timestamp            DateTime             @default(now())
+  candidateName        String
+  jobTitle             String
+  videoPath            String?
+  fullTranscript       Json
+  nonVerbalLog         Json
+  overallScore         Int
+  hiringRecommendation HiringRecommendation
+  hiringReason         String
+  strengths            String[]
+  weaknesses           String[]
+  improvementPlan      String
+  dimensionScores      Json
+  questionAnalysis     Json
+  nonVerbalAnalysis    Json
+  candidateId          String?
+  candidate            User?                @relation(fields: [candidateId], references: [id])
+  jobProfileId         String?
+  jobProfile           JobProfile?          @relation(fields: [jobProfileId], references: [id])
+}

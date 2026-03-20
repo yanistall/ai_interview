@@ -3,20 +3,119 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Interview Simulator</title>
+    <title>AI Talent Scout</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400&family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              noir: {
+                50: '#faf9f7',
+                100: '#f0ede8',
+                200: '#e0dbd2',
+                300: '#c9c0b3',
+                400: '#a89e8e',
+                500: '#8a7f6e',
+                600: '#6e6455',
+                700: '#544c3f',
+                800: '#1a1814',
+                900: '#0f0e0c',
+                950: '#080705',
+              },
+              amber: {
+                400: '#d4a857',
+                500: '#c49a3d',
+                600: '#b08a30',
+              }
+            },
+            fontFamily: {
+              display: ['Playfair Display', 'serif'],
+              body: ['Noto Sans TC', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+          }
+        }
+      }
+    </script>
     <style>
       body {
         font-family: 'Noto Sans TC', sans-serif;
       }
-      /* Custom scrollbar for reports */
+      /* Custom scrollbar */
       .scrollbar-hide::-webkit-scrollbar {
           display: none;
       }
       .scrollbar-hide {
           -ms-overflow-style: none;
           scrollbar-width: none;
+      }
+      /* Elegant scrollbar for visible areas */
+      .scroll-elegant::-webkit-scrollbar {
+          width: 4px;
+      }
+      .scroll-elegant::-webkit-scrollbar-track {
+          background: transparent;
+      }
+      .scroll-elegant::-webkit-scrollbar-thumb {
+          background: rgba(196, 154, 61, 0.3);
+          border-radius: 2px;
+      }
+      .scroll-elegant::-webkit-scrollbar-thumb:hover {
+          background: rgba(196, 154, 61, 0.5);
+      }
+      /* Noise texture overlay */
+      .noise::before {
+        content: '';
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+        pointer-events: none;
+        z-index: 9999;
+        opacity: 0.4;
+      }
+      /* Glass card effect */
+      .glass {
+        background: rgba(26, 24, 20, 0.6);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(196, 154, 61, 0.1);
+      }
+      .glass-light {
+        background: rgba(250, 249, 247, 0.03);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      /* Subtle glow */
+      .glow-amber {
+        box-shadow: 0 0 40px rgba(196, 154, 61, 0.08), 0 0 80px rgba(196, 154, 61, 0.04);
+      }
+      /* Animated gradient border */
+      @keyframes shimmer {
+        0% { background-position: -200% center; }
+        100% { background-position: 200% center; }
+      }
+      .shimmer-border {
+        background: linear-gradient(90deg, transparent, rgba(196, 154, 61, 0.3), transparent);
+        background-size: 200% 100%;
+        animation: shimmer 3s infinite;
+      }
+      /* Fade in animation */
+      @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(12px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-up {
+        animation: fadeUp 0.5s ease-out forwards;
+      }
+      .animate-fade-up-delay-1 { animation-delay: 0.1s; opacity: 0; }
+      .animate-fade-up-delay-2 { animation-delay: 0.2s; opacity: 0; }
+      .animate-fade-up-delay-3 { animation-delay: 0.3s; opacity: 0; }
+      /* Input focus glow */
+      .input-noir:focus {
+        box-shadow: 0 0 0 2px rgba(196, 154, 61, 0.2), 0 0 20px rgba(196, 154, 61, 0.05);
       }
     </style>
   <script type="importmap">
@@ -33,7 +132,7 @@
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-slate-50 text-slate-900 h-screen w-screen overflow-hidden">
+  <body class="bg-noir-950 text-noir-100 h-screen w-screen overflow-hidden noise">
     <div id="root" class="h-full w-full"></div>
   <script type="module" src="/index.tsx"></script>
 </body>

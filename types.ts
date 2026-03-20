@@ -1,3 +1,10 @@
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: 'CANDIDATE' | 'ADMIN';
+}
+
 export enum Persona {
   FRIENDLY_HR = 'FRIENDLY_HR',
   STRICT_MANAGER = 'STRICT_MANAGER',
@@ -68,7 +75,8 @@ export interface InterviewReport {
   timestamp: number; // Creation time
   candidateName: string;
   jobTitle: string;
-  recordingId?: string; // ID referencing the video in IndexedDB
+  recordingId?: string; // Legacy: ID referencing the video in IndexedDB
+  videoPath?: string;   // Server-side video file path
 
   // Raw Data for Playback Sync
   fullTranscript: TranscriptItem[];

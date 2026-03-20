@@ -24,7 +24,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectRole }) => {
           AI Talent <span className="text-amber-400 italic">Scout</span>
         </h1>
         <p className="text-noir-400 text-lg max-w-xl mx-auto leading-relaxed">
-          下一代智慧面試平台。結合 Gemini 即時視訊分析與情感辨識，為企業挖掘最合適的人才。
+          下一代智慧面試平台。結合即時視訊分析與情感辨識，為企業挖掘最合適的人才。
         </p>
       </div>
 

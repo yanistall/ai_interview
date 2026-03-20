@@ -40,7 +40,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onGoToRegister, onGoToFo
 
         <div className="text-center mb-10">
           <h1 className="font-display text-4xl font-bold text-noir-50 mb-2 tracking-tight">
-            AI Talent <span className="text-amber-400 italic">Scout</span>
+            AI  <span className="text-amber-400 italic">interview</span>
           </h1>
           <p className="text-noir-400 text-sm tracking-widest uppercase">登入您的帳號</p>
         </div>

@@ -1,4 +1,4 @@
-# AI Talent Scout
+# AI  interview
 
 下一代智慧面試平台。結合 Google Gemini 即時視訊分析與情感辨識，搭配 Anthropic Claude 生成深度面試報告，為企業挖掘最合適的人才。
 

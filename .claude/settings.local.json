@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(cd:*)",
+      "Bash(npx tsc:*)",
+      "Bash(find /Users/yan/my_project/ai_interview/ai_interview_v2 -type f \\\\\\(-name *.css -o -name *.scss \\\\\\) ! -path */node_modules/* ! -path */.next/* ! -path */dist/*)",
+      "Bash(grep -E \"\\\\.tsx$\")",
+      "Bash(npm run:*)",
+      "Bash(curl -s http://localhost:4000/api/health)"
+    ]
+  }
+}

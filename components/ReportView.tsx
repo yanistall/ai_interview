@@ -78,13 +78,20 @@ const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
     }
   };
 
-  // Chart Data Preparation
-  const chartData = [
+  // Chart Data Preparation — use real dimension scores from AI analysis
+  const dim = report.dimensionScores;
+  const chartData = dim ? [
+    { subject: '回答品質', A: dim.answerQuality, fullMark: 100 },
+    { subject: '溝通流暢', A: dim.communicationSkill, fullMark: 100 },
+    { subject: '職位匹配', A: dim.jobFit, fullMark: 100 },
+    { subject: '專業深度', A: dim.professionalDepth, fullMark: 100 },
+    { subject: '非語言表現', A: dim.nonVerbalPresence, fullMark: 100 },
+  ] : [
     { subject: '回答品質', A: report.overallScore, fullMark: 100 },
-    { subject: '溝通流暢', A: Math.min(100, report.overallScore + (Math.random() * 10 - 5)), fullMark: 100 },
-    { subject: '職位匹配', A: report.hiringRecommendation === 'HIRE' ? 90 : (report.hiringRecommendation === 'CONSIDER' ? 70 : 50), fullMark: 100 },
-    { subject: '專業深度', A: report.questionAnalysis.reduce((acc, q) => acc + q.score, 0) / report.questionAnalysis.length, fullMark: 100 },
-    { subject: '非語言表現', A: report.nonVerbalAnalysis?.bodyLanguageScore || 75, fullMark: 100 },
+    { subject: '溝通流暢', A: report.overallScore, fullMark: 100 },
+    { subject: '職位匹配', A: report.overallScore, fullMark: 100 },
+    { subject: '專業深度', A: report.questionAnalysis.reduce((acc, q) => acc + q.score, 0) / (report.questionAnalysis.length || 1), fullMark: 100 },
+    { subject: '非語言表現', A: report.nonVerbalAnalysis?.bodyLanguageScore || 50, fullMark: 100 },
   ];
 
   const getRecommendationColor = (rec: string) => {

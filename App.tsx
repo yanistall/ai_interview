@@ -55,10 +55,11 @@ const App: React.FC = () => {
       // 2. Generate report using Gemini
       // Note: generateInterviewReport now expects the same arguments but handles saving them to the report object internally
       const generatedReport = await generateInterviewReport(
-        transcript, 
-        nonVerbalSnapshots, 
-        config.jobTitle, 
-        config.candidateName
+        transcript,
+        nonVerbalSnapshots,
+        config.jobTitle,
+        config.candidateName,
+        config.jobDescription
       );
       
       // 3. Attach recording ID to report

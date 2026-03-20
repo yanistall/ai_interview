@@ -55,13 +55,21 @@ export interface QuestionAnalysis {
   suggestedAnswer: string;
 }
 
+export interface DimensionScores {
+  answerQuality: number;       // 回答品質 0-100
+  communicationSkill: number;  // 溝通流暢 0-100
+  jobFit: number;              // 職位匹配 0-100
+  professionalDepth: number;   // 專業深度 0-100
+  nonVerbalPresence: number;   // 非語言表現 0-100
+}
+
 export interface InterviewReport {
   id: string;        // UUID for database
   timestamp: number; // Creation time
   candidateName: string;
   jobTitle: string;
   recordingId?: string; // ID referencing the video in IndexedDB
-  
+
   // Raw Data for Playback Sync
   fullTranscript: TranscriptItem[];
   nonVerbalLog: NonVerbalSnapshot[];
@@ -73,6 +81,7 @@ export interface InterviewReport {
   strengths: string[];
   weaknesses: string[];
   improvementPlan: string;
+  dimensionScores: DimensionScores;
   questionAnalysis: QuestionAnalysis[];
   nonVerbalAnalysis: {
     averageExpression: string;

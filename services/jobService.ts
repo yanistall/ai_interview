@@ -27,6 +27,12 @@ export const getJobs = async (): Promise<JobProfile[]> => {
   return res.json();
 };
 
+export const getMyJobs = async (): Promise<JobProfile[]> => {
+  const res = await apiFetch('/jobs/my');
+  if (!res.ok) return [];
+  return res.json();
+};
+
 export const deleteJob = async (id: string): Promise<void> => {
   await apiFetch(`/jobs/${id}`, { method: 'DELETE' });
 };

@@ -9,6 +9,7 @@ datasource db {
 
 enum Role {
   CANDIDATE
+  ENTERPRISE
   ADMIN
 }
 
@@ -30,6 +31,10 @@ model User {
   email         String    @unique
   passwordHash  String
   name          String
+  companyName   String?
+  resumeFileName String?
+  resumeMimeType String?
+  resumeData     String?
   role          Role      @default(CANDIDATE)
   resetToken    String?
   resetTokenExp DateTime?

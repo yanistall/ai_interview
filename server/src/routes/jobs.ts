@@ -18,6 +18,20 @@ router.get('/', authenticate, async (_req: Request, res: Response) => {
   }
 });
 
+// GET /api/jobs/my - list current enterprise/admin user's jobs
+router.get('/my', authenticate, roleGuard('ADMIN', 'ENTERPRISE'), async (req: Request, res: Response) => {
+  try {
+    const jobs = await prisma.jobProfile.findMany({
+      where: { createdById: req.user!.userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(jobs);
+  } catch (error) {
+    console.error('Get my jobs error:', error);
+    res.status(500).json({ error: '取得我的職缺失敗' });
+  }
+});
+
 // GET /api/jobs/:id
 router.get('/:id', authenticate, async (req: Request, res: Response) => {
   try {
@@ -35,8 +49,8 @@ router.get('/:id', authenticate, async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/jobs - create job (ADMIN only)
-router.post('/', authenticate, roleGuard('ADMIN'), async (req: Request, res: Response) => {
+// POST /api/jobs - create job (ENTERPRISE / ADMIN)
+router.post('/', authenticate, roleGuard('ADMIN', 'ENTERPRISE'), async (req: Request, res: Response) => {
   try {
     const { companyName, title, description, persona, voiceName, questions } = req.body;
 
@@ -64,13 +78,24 @@ router.post('/', authenticate, roleGuard('ADMIN'), async (req: Request, res: Res
   }
 });
 
-// PUT /api/jobs/:id - update job (ADMIN only)
-router.put('/:id', authenticate, roleGuard('ADMIN'), async (req: Request, res: Response) => {
+// PUT /api/jobs/:id - update job (ENTERPRISE own / ADMIN all)
+router.put('/:id', authenticate, roleGuard('ADMIN', 'ENTERPRISE'), async (req: Request, res: Response) => {
   try {
     const { companyName, title, description, persona, voiceName, questions } = req.body;
+    const id = req.params.id as string;
+
+    const existing = await prisma.jobProfile.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ error: '職缺不存在' });
+      return;
+    }
+    if (req.user!.role === 'ENTERPRISE' && existing.createdById !== req.user!.userId) {
+      res.status(403).json({ error: '僅能編輯自己發布的職缺' });
+      return;
+    }
 
     const job = await prisma.jobProfile.update({
-      where: { id: req.params.id as string },
+      where: { id },
       data: {
         ...(companyName && { companyName }),
         ...(title && { title }),
@@ -88,11 +113,22 @@ router.put('/:id', authenticate, roleGuard('ADMIN'), async (req: Request, res: R
   }
 });
 
-// DELETE /api/jobs/:id - delete job (ADMIN only)
-router.delete('/:id', authenticate, roleGuard('ADMIN'), async (req: Request, res: Response) => {
+// DELETE /api/jobs/:id - delete job (ENTERPRISE own / ADMIN all)
+router.delete('/:id', authenticate, roleGuard('ADMIN', 'ENTERPRISE'), async (req: Request, res: Response) => {
   try {
+    const id = req.params.id as string;
+    const existing = await prisma.jobProfile.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ error: '職缺不存在' });
+      return;
+    }
+    if (req.user!.role === 'ENTERPRISE' && existing.createdById !== req.user!.userId) {
+      res.status(403).json({ error: '僅能刪除自己發布的職缺' });
+      return;
+    }
+
     await prisma.jobProfile.delete({
-      where: { id: req.params.id as string },
+      where: { id },
     });
     res.json({ message: '職缺已刪除' });
   } catch (error) {

@@ -29,6 +29,13 @@ const upload = multer({
 
 const router = Router();
 
+const getVideoContentType = (filename: string): string => {
+  const ext = path.extname(filename).toLowerCase();
+  if (ext === '.mp4') return 'video/mp4';
+  if (ext === '.webm') return 'video/webm';
+  return 'application/octet-stream';
+};
+
 // POST /api/videos/upload
 router.post('/upload', authenticate, upload.single('video'), (req: Request, res: Response) => {
   if (!req.file) {
@@ -40,7 +47,9 @@ router.post('/upload', authenticate, upload.single('video'), (req: Request, res:
 
 // GET /api/videos/:filename - stream video
 router.get('/:filename', authenticate, (req: Request, res: Response) => {
-  const filePath = path.join(UPLOADS_DIR, req.params.filename as string);
+  const filename = req.params.filename as string;
+  const filePath = path.join(UPLOADS_DIR, filename);
+  const contentType = getVideoContentType(filename);
 
   if (!fs.existsSync(filePath)) {
     res.status(404).json({ error: '影片不存在' });
@@ -61,13 +70,13 @@ router.get('/:filename', authenticate, (req: Request, res: Response) => {
       'Content-Range': `bytes ${start}-${end}/${stat.size}`,
       'Accept-Ranges': 'bytes',
       'Content-Length': chunkSize,
-      'Content-Type': 'video/webm',
+      'Content-Type': contentType,
     });
     stream.pipe(res);
   } else {
     res.writeHead(200, {
       'Content-Length': stat.size,
-      'Content-Type': 'video/webm',
+      'Content-Type': contentType,
     });
     fs.createReadStream(filePath).pipe(res);
   }

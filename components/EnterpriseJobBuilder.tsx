@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { JobProfile, Persona, PRESET_QUESTIONS, AVAILABLE_VOICES } from '../types';
-import { saveJob, getJobs, deleteJob } from '../services/jobService';
+import { saveJob, getJobs, getMyJobs, deleteJob } from '../services/jobService';
 import { Plus, Trash2, Save, Mic, User } from 'lucide-react';
 
 interface EnterpriseJobBuilderProps {
   onBack: () => void;
+  defaultCompanyName?: string;
+  canManageAll?: boolean;
 }
 
-const EnterpriseJobBuilder: React.FC<EnterpriseJobBuilderProps> = ({ onBack }) => {
+const EnterpriseJobBuilder: React.FC<EnterpriseJobBuilderProps> = ({ onBack, defaultCompanyName = '', canManageAll = false }) => {
   const [jobs, setJobs] = useState<JobProfile[]>([]);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -20,24 +22,37 @@ const EnterpriseJobBuilder: React.FC<EnterpriseJobBuilderProps> = ({ onBack }) =
   const [voiceName, setVoiceName] = useState('Kore');
   const [questions, setQuestions] = useState<string[]>([PRESET_QUESTIONS[0], PRESET_QUESTIONS[1]]);
   const [newQuestion, setNewQuestion] = useState('');
+  const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
+  const [editingQuestionText, setEditingQuestionText] = useState('');
+  const [draggingQuestionIndex, setDraggingQuestionIndex] = useState<number | null>(null);
 
   const loadJobs = async () => {
-    const data = await getJobs();
+    const data = canManageAll ? await getJobs() : await getMyJobs();
     setJobs(data);
   };
 
   useEffect(() => {
     loadJobs();
-  }, []);
+  }, [canManageAll]);
+
+  useEffect(() => {
+    if (!isEditing || editId) return;
+    if (!companyName && defaultCompanyName) {
+      setCompanyName(defaultCompanyName);
+    }
+  }, [defaultCompanyName, isEditing, editId, companyName]);
 
   const resetForm = () => {
     setEditId(null);
-    setCompanyName('');
+    setCompanyName(defaultCompanyName || '');
     setTitle('');
     setDescription('');
     setPersona(Persona.FRIENDLY_HR);
     setVoiceName('Kore');
     setQuestions([PRESET_QUESTIONS[0], PRESET_QUESTIONS[1]]);
+    setEditingQuestionIndex(null);
+    setEditingQuestionText('');
+    setDraggingQuestionIndex(null);
     setIsEditing(false);
   };
 
@@ -85,13 +100,61 @@ const EnterpriseJobBuilder: React.FC<EnterpriseJobBuilderProps> = ({ onBack }) =
     }
   };
 
+  const startEditQuestion = (index: number) => {
+    setEditingQuestionIndex(index);
+    setEditingQuestionText(questions[index] || '');
+  };
+
+  const saveEditQuestion = () => {
+    if (editingQuestionIndex === null) return;
+    const text = editingQuestionText.trim();
+    if (!text) {
+      alert('題目內容不能為空');
+      return;
+    }
+    setQuestions((prev) => prev.map((q, i) => (i === editingQuestionIndex ? text : q)));
+    setEditingQuestionIndex(null);
+    setEditingQuestionText('');
+  };
+
+  const cancelEditQuestion = () => {
+    setEditingQuestionIndex(null);
+    setEditingQuestionText('');
+  };
+
+  const reorderQuestions = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
+
+    setQuestions((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+
+    if (editingQuestionIndex !== null) {
+      if (editingQuestionIndex === fromIndex) {
+        setEditingQuestionIndex(toIndex);
+      } else if (fromIndex < toIndex && editingQuestionIndex > fromIndex && editingQuestionIndex <= toIndex) {
+        setEditingQuestionIndex(editingQuestionIndex - 1);
+      } else if (fromIndex > toIndex && editingQuestionIndex >= toIndex && editingQuestionIndex < fromIndex) {
+        setEditingQuestionIndex(editingQuestionIndex + 1);
+      }
+    }
+  };
+
   return (
     <div className="glass-light rounded-xl p-8">
       <div className="flex justify-between items-center mb-8">
         <h2 className="font-display text-2xl font-bold text-noir-100">職缺管理與發布</h2>
         {!isEditing && (
           <button
-            onClick={() => setIsEditing(true)}
+            onClick={() => {
+              setIsEditing(true);
+              if (!companyName && defaultCompanyName) {
+                setCompanyName(defaultCompanyName);
+              }
+            }}
             className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 text-noir-950 px-5 py-2.5 rounded-lg hover:from-amber-400 hover:to-amber-500 transition-all duration-300 font-bold text-sm shadow-lg shadow-amber-500/10"
           >
             <Plus size={18} /> 新增職缺
@@ -134,10 +197,9 @@ const EnterpriseJobBuilder: React.FC<EnterpriseJobBuilderProps> = ({ onBack }) =
                   className="w-full bg-noir-900/50 border border-noir-700/50 rounded-lg p-3.5 outline-none text-noir-100 transition-all duration-300 input-noir focus:border-amber-500/30"
                   value={persona} onChange={e => setPersona(e.target.value as Persona)}
                 >
-                  <option value={Persona.FRIENDLY_HR}>親切 HR (輕鬆、引導式)</option>
-                  <option value={Persona.STRICT_MANAGER}>嚴格經理 (高壓、追問細節)</option>
-                  <option value={Persona.TECHNICAL_LEAD}>技術主管 (專注專業能力)</option>
-                  <option value={Persona.EXECUTIVE}>公司高層 (關注宏觀願景)</option>
+                 <option value={Persona.FRIENDLY_HR}>引導式</option>
+                  <option value={Persona.STRICT_MANAGER}>嚴謹</option>
+                  <option value={Persona.TECHNICAL_LEAD}>專注專業能力</option>
                 </select>
              </div>
              <div>
@@ -159,12 +221,50 @@ const EnterpriseJobBuilder: React.FC<EnterpriseJobBuilderProps> = ({ onBack }) =
              <label className="block text-xs font-medium text-noir-400 mb-3 tracking-widest uppercase">面試題庫設定</label>
              <div className="space-y-2 mb-3">
                {questions.map((q, i) => (
-                 <div key={i} className="flex gap-2 items-center bg-noir-900/40 p-3 rounded-lg border border-noir-800/50">
+                 <div
+                   key={i}
+                   draggable
+                   onDragStart={() => setDraggingQuestionIndex(i)}
+                   onDragOver={(e) => e.preventDefault()}
+                   onDrop={() => {
+                     if (draggingQuestionIndex === null) return;
+                     reorderQuestions(draggingQuestionIndex, i);
+                     setDraggingQuestionIndex(null);
+                   }}
+                   onDragEnd={() => setDraggingQuestionIndex(null)}
+                   className={`flex gap-2 items-center bg-noir-900/40 p-3 rounded-lg border transition-colors ${
+                     draggingQuestionIndex === i
+                       ? 'border-amber-500/50 opacity-70'
+                       : 'border-noir-800/50'
+                   }`}
+                 >
                    <span className="bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded text-xs font-mono font-bold">{i+1}</span>
-                   <span className="flex-1 text-sm text-noir-300">{q}</span>
-                   <button onClick={() => setQuestions(questions.filter((_, idx) => idx !== i))} className="text-noir-600 hover:text-red-400 transition-colors">
-                     <Trash2 size={14} />
-                   </button>
+                   <span className="text-noir-600 text-xs cursor-move select-none" title="拖曳排序">⋮⋮</span>
+                   {editingQuestionIndex === i ? (
+                     <>
+                       <input
+                         className="flex-1 bg-noir-900/60 border border-noir-700/50 rounded-lg p-2 text-sm outline-none text-noir-100"
+                         value={editingQuestionText}
+                         onChange={(e) => setEditingQuestionText(e.target.value)}
+                       />
+                       <button onClick={saveEditQuestion} className="px-2 py-1 text-xs text-emerald-400 hover:bg-emerald-500/10 rounded">
+                         儲存
+                       </button>
+                       <button onClick={cancelEditQuestion} className="px-2 py-1 text-xs text-noir-500 hover:bg-noir-800/60 rounded">
+                         取消
+                       </button>
+                     </>
+                   ) : (
+                     <>
+                       <span className="flex-1 text-sm text-noir-300">{q}</span>
+                       <button onClick={() => startEditQuestion(i)} className="text-noir-500 hover:text-amber-400 transition-colors text-xs px-2 py-1 rounded hover:bg-amber-500/10">
+                         編輯
+                       </button>
+                       <button onClick={() => setQuestions(questions.filter((_, idx) => idx !== i))} className="text-noir-600 hover:text-red-400 transition-colors">
+                         <Trash2 size={14} />
+                       </button>
+                     </>
+                   )}
                  </div>
                ))}
              </div>

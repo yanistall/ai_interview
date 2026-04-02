@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { UserPlus, Loader2 } from 'lucide-react';
 
 interface RegisterPageProps {
-  onRegister: (email: string, password: string, name: string, role: 'CANDIDATE' | 'ADMIN') => Promise<void>;
+  onRegister: (email: string, password: string, name: string, role: 'CANDIDATE' | 'ENTERPRISE') => Promise<void>;
   onGoToLogin: () => void;
 }
 
@@ -11,7 +11,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onGoToLogin }) 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
-  const [role, setRole] = useState<'CANDIDATE' | 'ADMIN'>('CANDIDATE');
+  const [role, setRole] = useState<'CANDIDATE' | 'ENTERPRISE'>('CANDIDATE');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -60,7 +60,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onGoToLogin }) 
 
         <div className="text-center mb-8">
           <h1 className="font-display text-4xl font-bold text-noir-50 mb-2 tracking-tight">
-            AI  <span className="text-amber-400 italic">interview</span>
+            AI interview <span className="text-amber-400 italic">interview</span>
           </h1>
           <p className="text-noir-400 text-sm tracking-widest uppercase">建立新帳號</p>
         </div>
@@ -125,10 +125,10 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister, onGoToLogin }) 
             <select
               className="w-full bg-noir-900/50 border border-noir-700/50 rounded-lg p-3.5 outline-none text-noir-100 transition-all duration-300 input-noir focus:border-amber-500/30"
               value={role}
-              onChange={e => setRole(e.target.value as 'CANDIDATE' | 'ADMIN')}
+              onChange={e => setRole(e.target.value as 'CANDIDATE' | 'ENTERPRISE')}
             >
               <option value="CANDIDATE">求職者</option>
-              <option value="ADMIN">企業管理員</option>
+              <option value="ENTERPRISE">企業管理員</option>
             </select>
           </div>
 

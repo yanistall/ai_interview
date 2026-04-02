@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { InterviewReport, NonVerbalSnapshot } from '../types';
 import { CheckCircle, AlertTriangle, ArrowLeft, ScanFace, Smile, Video as VideoIcon, User, Bot } from 'lucide-react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { getVideoUrl } from '../services/db';
+import { fetchVideoBlobUrl } from '../services/db';
 
 interface ReportViewProps {
   report: InterviewReport;
@@ -11,7 +11,7 @@ interface ReportViewProps {
 
 const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [currentTime, setCurrentTime] = useState(0);
+  const [videoError, setVideoError] = useState<string | null>(null);
   const [currentSnapshot, setCurrentSnapshot] = useState<NonVerbalSnapshot | null>(null);
   const [activeIndex, setActiveIndex] = useState<number>(-1);
 
@@ -19,39 +19,72 @@ const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (report.videoPath) {
-      setVideoUrl(getVideoUrl(report.videoPath));
-    }
-  }, [report.videoPath]);
+    let mounted = true;
+    let objectUrl: string | null = null;
 
-  // Determine active transcript index based on current time
-  useEffect(() => {
-    if (!report.fullTranscript) return;
-    const index = report.fullTranscript.findIndex((item, idx) => {
-        const nextItem = report.fullTranscript[idx + 1];
-        return currentTime >= item.relativeTime && (!nextItem || currentTime < nextItem.relativeTime);
-    });
-    setActiveIndex(index);
-  }, [currentTime, report.fullTranscript]);
+    const loadVideo = async () => {
+      if (!report.videoPath) {
+        setVideoUrl(null);
+        setVideoError(null);
+        return;
+      }
+
+      try {
+        setVideoError(null);
+        const blobUrl = await fetchVideoBlobUrl(report.videoPath);
+        if (!mounted) {
+          URL.revokeObjectURL(blobUrl);
+          return;
+        }
+        objectUrl = blobUrl;
+        setVideoUrl(blobUrl);
+      } catch (e) {
+        console.error('Load video failed', e);
+        if (mounted) {
+          setVideoUrl(null);
+          setVideoError('影片載入失敗，請稍後重試');
+        }
+      }
+    };
+
+    loadVideo();
+
+    return () => {
+      mounted = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [report.videoPath]);
 
   // Auto-scroll to active item when index changes
   useEffect(() => {
     if (activeIndex !== -1 && transcriptContainerRef.current) {
         const activeElement = document.getElementById(`transcript-item-${activeIndex}`);
         if (activeElement) {
-            activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            activeElement.scrollIntoView({ behavior: 'auto', block: 'nearest' });
         }
     }
   }, [activeIndex]);
 
   const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const t = e.currentTarget.currentTime;
-    setCurrentTime(t);
+
+    if (report.fullTranscript && report.fullTranscript.length > 0) {
+      const index = report.fullTranscript.findIndex((item, idx) => {
+        const nextItem = report.fullTranscript[idx + 1];
+        return t >= item.relativeTime && (!nextItem || t < nextItem.relativeTime);
+      });
+      setActiveIndex((prev) => (prev === index ? prev : index));
+    }
 
     // Find the closest non-verbal snapshot within the last 4 seconds
     if (report.nonVerbalLog) {
       const snap = report.nonVerbalLog.find(s => t >= s.relativeTime && t < s.relativeTime + 4);
-      setCurrentSnapshot(snap || null);
+      setCurrentSnapshot((prev) => {
+        const next = snap || null;
+        if (!prev && !next) return prev;
+        if (prev && next && prev.timestamp === next.timestamp) return prev;
+        return next;
+      });
     }
   };
 
@@ -132,7 +165,7 @@ const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
                                     onTimeUpdate={handleTimeUpdate}
                                 />
                             ) : (
-                                <div className="text-noir-600">影片載入中...</div>
+                                <div className="text-noir-600">{videoError || '影片載入中...'}</div>
                             )}
 
                             {/* Emotion Sync HUD */}

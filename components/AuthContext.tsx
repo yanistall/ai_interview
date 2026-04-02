@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string, role: 'CANDIDATE' | 'ADMIN') => Promise<void>;
+  register: (email: string, password: string, name: string, role: 'CANDIDATE' | 'ENTERPRISE') => Promise<void>;
   logout: () => void;
 }
 
@@ -41,7 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(user);
   }, []);
 
-  const register = useCallback(async (email: string, password: string, name: string, role: 'CANDIDATE' | 'ADMIN') => {
+  const register = useCallback(async (email: string, password: string, name: string, role: 'CANDIDATE' | 'ENTERPRISE') => {
     const { user } = await apiRegister(email, password, name, role);
     setUser(user);
   }, []);

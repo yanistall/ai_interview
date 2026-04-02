@@ -5,12 +5,29 @@ import { roleGuard } from '../middleware/roleGuard.js';
 
 const router = Router();
 
-// GET /api/reports - list all reports (ADMIN only)
-router.get('/', authenticate, roleGuard('ADMIN'), async (_req: Request, res: Response) => {
+// GET /api/reports - list reports by role scope
+router.get('/', authenticate, async (req: Request, res: Response) => {
   try {
-    const reports = await prisma.interviewReport.findMany({
-      orderBy: { timestamp: 'desc' },
-    });
+    let reports;
+
+    if (req.user!.role === 'CANDIDATE') {
+      reports = await prisma.interviewReport.findMany({
+        where: { candidateId: req.user!.userId },
+        orderBy: { timestamp: 'desc' },
+      });
+    } else if (req.user!.role === 'ENTERPRISE') {
+      reports = await prisma.interviewReport.findMany({
+        where: {
+          jobProfile: { createdById: req.user!.userId },
+        },
+        orderBy: { timestamp: 'desc' },
+      });
+    } else {
+      reports = await prisma.interviewReport.findMany({
+        orderBy: { timestamp: 'desc' },
+      });
+    }
+
     res.json(reports);
   } catch (error) {
     console.error('Get reports error:', error);
@@ -19,15 +36,29 @@ router.get('/', authenticate, roleGuard('ADMIN'), async (_req: Request, res: Res
 });
 
 // GET /api/reports/:id
-router.get('/:id', authenticate, roleGuard('ADMIN'), async (req: Request, res: Response) => {
+router.get('/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const report = await prisma.interviewReport.findUnique({
       where: { id: req.params.id as string },
+      include: { jobProfile: { select: { createdById: true } } },
     });
     if (!report) {
       res.status(404).json({ error: '報告不存在' });
       return;
     }
+
+    const isCandidateOwner =
+      req.user!.role === 'CANDIDATE' && report.candidateId === req.user!.userId;
+    const isEnterpriseOwner =
+      req.user!.role === 'ENTERPRISE' &&
+      report.jobProfile?.createdById === req.user!.userId;
+    const isAdminOwner = req.user!.role === 'ADMIN';
+
+    if (!isCandidateOwner && !isEnterpriseOwner && !isAdminOwner) {
+      res.status(403).json({ error: '無權限查看此報告' });
+      return;
+    }
+
     res.json(report);
   } catch (error) {
     console.error('Get report error:', error);
@@ -75,9 +106,22 @@ router.post('/', authenticate, async (req: Request, res: Response) => {
   }
 });
 
-// DELETE /api/reports/:id (ADMIN only)
-router.delete('/:id', authenticate, roleGuard('ADMIN'), async (req: Request, res: Response) => {
+// DELETE /api/reports/:id (ENTERPRISE own / ADMIN all)
+router.delete('/:id', authenticate, roleGuard('ADMIN', 'ENTERPRISE'), async (req: Request, res: Response) => {
   try {
+    const report = await prisma.interviewReport.findUnique({
+      where: { id: req.params.id as string },
+      include: { jobProfile: { select: { createdById: true } } },
+    });
+    if (!report) {
+      res.status(404).json({ error: '報告不存在' });
+      return;
+    }
+    if (req.user!.role === 'ENTERPRISE' && report.jobProfile?.createdById !== req.user!.userId) {
+      res.status(403).json({ error: '僅能刪除自己職缺的報告' });
+      return;
+    }
+
     await prisma.interviewReport.delete({
       where: { id: req.params.id as string },
     });

@@ -6,6 +6,12 @@ interface AuthResponse {
   user: User;
 }
 
+export interface UserProfile extends User {
+  resumeFileName?: string | null;
+  resumeMimeType?: string | null;
+  resumeData?: string | null;
+}
+
 export const login = async (email: string, password: string): Promise<AuthResponse> => {
   let res: Response;
   try {
@@ -32,7 +38,7 @@ export const login = async (email: string, password: string): Promise<AuthRespon
   return data;
 };
 
-export const register = async (email: string, password: string, name: string, role: 'CANDIDATE' | 'ADMIN'): Promise<AuthResponse> => {
+export const register = async (email: string, password: string, name: string, role: 'CANDIDATE' | 'ENTERPRISE'): Promise<AuthResponse> => {
   let res: Response;
   try {
     res = await apiFetch('/auth/register', {
@@ -84,11 +90,30 @@ export const resetPassword = async (token: string, newPassword: string): Promise
   }
 };
 
-export const getMe = async (): Promise<User> => {
+export const getMe = async (): Promise<UserProfile> => {
   const res = await apiFetch('/auth/me');
 
   if (!res.ok) {
     throw new Error('未登入');
+  }
+
+  const data = await res.json();
+  return data.user;
+};
+
+export const updateMyProfile = async (payload: {
+  name?: string;
+  companyName?: string;
+  resume?: { fileName: string; mimeType: string; data: string } | null;
+}): Promise<UserProfile> => {
+  const res = await apiFetch('/auth/profile', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || '更新個人資料失敗');
   }
 
   const data = await res.json();

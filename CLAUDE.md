@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-本文件提供給 Claude Code（claude.ai/code）在此專案中工作時的指引。
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## 開發指令
 
@@ -34,7 +34,7 @@ JWT_SECRET=<隨機長字串>
 PORT=4000
 ```
 
-**注意環境變數注入方式：** `GEMINI_API_KEY` 透過 `vite.config.ts` 的 define 注入為 `process.env.API_KEY`。前端透過 Vite dev proxy 存取 `/api` 路由，自動轉發至後端 `http://localhost:4000`。
+**注意環境變數注入方式：** `GEMINI_API_KEY` 透過 `vite.config.ts` 的 define 同時注入為 `process.env.API_KEY` 和 `process.env.GEMINI_API_KEY`（兩者等價）。前端透過 Vite dev proxy 存取 `/api` 路由，自動轉發至後端 `http://localhost:4000`。
 
 ## 架構概覽
 
@@ -86,4 +86,9 @@ HOME → ADMIN_DASHBOARD → ADMIN_REPORT_DETAIL（需 ADMIN 角色）
 - **語言：** 所有 UI 文字與 AI prompt 均使用**繁體中文（台灣）**
 - **音訊格式：** Gemini 輸入為 16kHz PCM，輸出為 24kHz PCM（參見 `services/audioUtils.ts`）
 - **前端 Service 層：** 所有 service 函式皆為 async，透過 `services/api.ts` 的 `apiFetch` 與後端通訊
-- **Prisma Schema：** 位於 `server/src/db/prisma/schema.prisma`
+- **Prisma Schema：** 位於 `server/src/db/prisma/schema.prisma`（非預設路徑，所有 prisma CLI 指令需加 `--schema=src/db/prisma/schema.prisma`）
+- **無 Linting/Testing 設定：** 專案目前無 ESLint、Prettier、或測試框架配置
+- **React StrictMode：** `index.tsx` 使用 `<React.StrictMode>`，開發模式下 useEffect 會執行兩次，修改 `LiveSession` 等有副作用的元件時需注意
+- **影片處理：** 前端使用 MediaRecorder（WebM），後端用 Multer 儲存至 `server/uploads/`，支援 HTTP 206 Range Request 串流播放
+- **面試官人格系統：** 4 種 Persona（`FRIENDLY_HR`、`STRICT_MANAGER`、`TECHNICAL_LEAD`、`EXECUTIVE`），各有詳細行為腳本於 `services/personaPrompts.ts`
+- **履歷上傳：** PDF/PNG/JPG/WEBP 轉 base64 後傳給 Gemini

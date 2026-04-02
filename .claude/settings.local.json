@@ -7,7 +7,20 @@
       "Bash(find /Users/yan/my_project/ai_interview/ai_interview_v2 -type f \\\\\\(-name *.css -o -name *.scss \\\\\\) ! -path */node_modules/* ! -path */.next/* ! -path */dist/*)",
       "Bash(grep -E \"\\\\.tsx$\")",
       "Bash(npm run:*)",
-      "Bash(curl -s http://localhost:4000/api/health)"
+      "Bash(curl -s http://localhost:4000/api/health)",
+      "Bash(node create-admin.mjs)",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(curl -s -X POST http://localhost:4000/api/auth/register -H 'Content-Type: application/json' -d '{\"email\":\"testuser@example.com\",\"password\":\"Test1234!\",\"name\":\"Test User\",\"role\":\"CANDIDATE\"}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s http://localhost:4000/api/auth/me -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI5Y2NjYjlhNy0wNjhjLTQzMTctOWIwMS0zMTUyMzM0ZmFiYTIiLCJlbWFpbCI6InRlc3R1c2VyQGV4YW1wbGUuY29tIiwicm9sZSI6IkNBTkRJREFURSIsImlhdCI6MTc3NTAyMjQxNiwiZXhwIjoxNzc1MTA4ODE2fQ.tOTpJllzHaJWlSbqlZ1r1IjOcJqtfToezAEa3_JlNjQ')",
+      "Bash(node:*)",
+      "Bash(lsof -ti:3000)",
+      "Bash(lsof -ti:4000)",
+      "Bash(npm ls:*)",
+      "WebSearch",
+      "WebFetch(domain:ai.google.dev)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

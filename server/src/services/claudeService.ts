@@ -23,6 +23,113 @@ interface GenerateReportParams {
   jobDescription: string;
 }
 
+const clampScore = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
+
+const containsAny = (text: string, keywords: string[]) =>
+  keywords.some((k) => text.includes(k));
+
+const POSITIVE_KEYWORDS = [
+  'confident', 'confidence', 'happy', 'smile', 'engaged', 'calm', 'focused', 'composed', 'open',
+  '自信', '有自信', '自然', '放鬆', '穩定', '微笑', '專注', '大方', '開朗',
+];
+
+const NEGATIVE_KEYWORDS = [
+  'nervous', 'anxious', 'tense', 'stressed', 'hesitant', 'avoid', 'fearful', 'uncertain',
+  '緊張', '焦慮', '僵硬', '不安', '害怕', '猶豫', '閃躲', '慌', '不確定',
+];
+
+const SUPPORTIVE_FEEDBACK_KEYWORDS = [
+  'good eye contact', 'clear expression', 'looks calm', 'steady', 'smile',
+  '眼神', '眼神接觸', '表情自然', '穩定', '放鬆', '自信',
+];
+
+const WARNING_FEEDBACK_KEYWORDS = [
+  'try to smile', 'nervous', 'tense', 'avoid eye contact', 'unclear', 'stiff',
+  '緊張', '僵硬', '避免眼神', '避免目光接觸', '不自然', '不安',
+];
+
+const scoreNonVerbalSnapshot = (snapshot: NonVerbalSnapshot): number | null => {
+  const expression = (snapshot.expression || '').toLowerCase();
+  const feedback = (snapshot.feedback || '').toLowerCase();
+  const merged = `${expression} ${feedback}`;
+
+  if (!merged.trim()) return null;
+
+  const hasPositive = containsAny(merged, POSITIVE_KEYWORDS);
+  const hasNegative = containsAny(merged, NEGATIVE_KEYWORDS);
+
+  let score = 80;
+  if (hasPositive && !hasNegative) score = 90;
+  if (hasNegative && !hasPositive) score = 62;
+  if (hasPositive && hasNegative) score = 75;
+
+  if (containsAny(feedback, SUPPORTIVE_FEEDBACK_KEYWORDS)) score += 4;
+  if (containsAny(feedback, WARNING_FEEDBACK_KEYWORDS)) score -= 6;
+
+  return clampScore(score);
+};
+
+const computeNonVerbalScore = (snapshots: NonVerbalSnapshot[]) => {
+  const validScores = snapshots
+    .map(scoreNonVerbalSnapshot)
+    .filter((v): v is number => typeof v === 'number');
+
+  if (validScores.length === 0) {
+    return {
+      score: 80,
+      averageExpression: '資料不足',
+      observations: ['非語言資料不足，已套用預設評分 80 分。'],
+      tips: ['建議保持自然眼神接觸、穩定語速與放鬆表情。'],
+    };
+  }
+
+  const score = clampScore(validScores.reduce((a, b) => a + b, 0) / validScores.length);
+
+  const expressionCounter = new Map<string, number>();
+  snapshots.forEach((s) => {
+    const key = (s.expression || '').trim();
+    if (!key) return;
+    expressionCounter.set(key, (expressionCounter.get(key) || 0) + 1);
+  });
+  const averageExpression =
+    [...expressionCounter.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || '中性';
+
+  const observations = Array.from(
+    new Set(
+      snapshots
+        .map((s) => s.feedback?.trim())
+        .filter((v): v is string => !!v)
+    )
+  ).slice(0, 4);
+
+  let tips: string[];
+  if (score < 70) {
+    tips = [
+      '回答前先停 1 秒深呼吸，降低緊張感。',
+      '維持眼神接觸 3-5 秒，再自然移動視線。',
+      '刻意放慢語速約 10%，讓表情與語氣更穩定。',
+    ];
+  } else if (score < 85) {
+    tips = [
+      '延續目前的穩定表現，增加適度微笑。',
+      '重點回答時搭配點頭與明確語調。',
+      '維持坐姿開放，避免長時間低頭。'
+    ];
+  } else {
+    tips = [
+      '維持自然自信的表情與眼神互動。',
+      '關鍵成果段落可加強語氣節奏，凸顯說服力。'
+    ];
+  }
+
+  return {
+    score,
+    averageExpression,
+    observations: observations.length > 0 ? observations : ['整體表情與姿態穩定。'],
+    tips,
+  };
+};
+
 export const generateInterviewReport = async ({
   transcript,
   nonVerbalSnapshots,
@@ -152,8 +259,20 @@ JSON 結構如下：
   const cleaned = responseText.replace(/```json|```/g, '').trim();
   const result = JSON.parse(cleaned);
 
+  const nonVerbalComputed = computeNonVerbalScore(nonVerbalSnapshots);
+
   return {
     ...result,
+    dimensionScores: {
+      ...(result.dimensionScores || {}),
+      nonVerbalPresence: nonVerbalComputed.score,
+    },
+    nonVerbalAnalysis: {
+      averageExpression: nonVerbalComputed.averageExpression,
+      bodyLanguageScore: nonVerbalComputed.score,
+      observations: nonVerbalComputed.observations,
+      tips: nonVerbalComputed.tips,
+    },
     candidateName,
     jobTitle,
     fullTranscript: transcript,

@@ -2,7 +2,11 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'CANDIDATE' | 'ADMIN';
+  companyName?: string | null;
+  role: 'CANDIDATE' | 'ENTERPRISE' | 'ADMIN';
+  resumeFileName?: string | null;
+  resumeMimeType?: string | null;
+  resumeData?: string | null;
 }
 
 export enum Persona {
@@ -112,11 +116,8 @@ export const PRESET_QUESTIONS = [
 
 // Voices available in Gemini Live
 export const AVAILABLE_VOICES = [
-  { id: 'Puck', name: 'Puck (男聲 - 活潑)', gender: 'Male' },
-  { id: 'Charon', name: 'Charon (男聲 - 深沉)', gender: 'Male' },
-  { id: 'Kore', name: 'Kore (女聲 - 清晰)', gender: 'Female' },
-  { id: 'Fenrir', name: 'Fenrir (女聲 - 專業)', gender: 'Female' },
-  { id: 'Aoede', name: 'Aoede (女聲 - 溫柔)', gender: 'Female' },
+  { id: 'Charon', name: '男聲', gender: 'Male' },
+  { id: 'Fenrir', name: '女聲', gender: 'Female' },
 ];
 
 export const DEFAULT_MANDATORY_QUESTIONS = [

@@ -27,13 +27,13 @@ export const getVideoUrl = (videoPath: string): string => {
   return `/api/videos/${videoPath}`;
 };
 
-export const fetchVideoBlobUrl = async (videoPath: string): Promise<string> => {
-  const res = await apiFetch(`/videos/${videoPath}`, { method: 'GET' });
+export const fetchVideoToken = async (filename: string): Promise<string> => {
+  const res = await apiFetch(`/videos/token/${filename}`, { method: 'GET' });
   if (!res.ok) {
-    throw new Error(`Failed to load video: ${res.status}`);
+    throw new Error(`Failed to get video token: ${res.status}`);
   }
-  const blob = await res.blob();
-  return URL.createObjectURL(blob);
+  const data = await res.json();
+  return data.token as string;
 };
 
 export const deleteVideo = async (videoPath: string): Promise<void> => {

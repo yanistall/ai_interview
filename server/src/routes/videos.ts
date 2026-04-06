@@ -72,6 +72,7 @@ router.get('/token/:filename', authenticate, (req: Request, res: Response) => {
     { expiresIn: '5m' }
   );
 
+  res.set('Cache-Control', 'no-store');
   res.json({ token, expiresAt: Date.now() + 5 * 60 * 1000 });
 });
 
@@ -116,6 +117,12 @@ router.get('/:filename', (req: Request, res: Response) => {
     const parts = range.replace(/bytes=/, '').split('-');
     const start = parseInt(parts[0], 10);
     const end = Math.min(parts[1] ? parseInt(parts[1], 10) : stat.size - 1, stat.size - 1);
+
+    if (isNaN(start) || start < 0 || start >= stat.size || end < start) {
+      res.status(416).set('Content-Range', `bytes */${stat.size}`).end();
+      return;
+    }
+
     const chunkSize = end - start + 1;
 
     const stream = fs.createReadStream(filePath, { start, end });

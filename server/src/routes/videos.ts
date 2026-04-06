@@ -30,6 +30,12 @@ const upload = multer({
 
 const router = Router();
 
+const resolveUploadPath = (filename: string): string | null => {
+  const resolved = path.resolve(UPLOADS_DIR, filename);
+  if (!resolved.startsWith(UPLOADS_DIR + path.sep) && resolved !== UPLOADS_DIR) return null;
+  return resolved;
+};
+
 const getVideoContentType = (filename: string): string => {
   const ext = path.extname(filename).toLowerCase();
   if (ext === '.mp4') return 'video/mp4';
@@ -50,8 +56,11 @@ router.post('/upload', authenticate, upload.single('video'), (req: Request, res:
 // 必須在 GET /:filename 之前註冊
 router.get('/token/:filename', authenticate, (req: Request, res: Response) => {
   const filename = req.params.filename as string;
-  const filePath = path.join(UPLOADS_DIR, filename);
-
+  const filePath = resolveUploadPath(filename);
+  if (!filePath) {
+    res.status(400).json({ error: '無效的檔案名稱' });
+    return;
+  }
   if (!fs.existsSync(filePath)) {
     res.status(404).json({ error: '影片不存在' });
     return;
@@ -87,21 +96,26 @@ router.get('/:filename', (req: Request, res: Response) => {
     return;
   }
 
-  const filePath = path.join(UPLOADS_DIR, filename);
+  const filePath = resolveUploadPath(filename);
+  if (!filePath) {
+    res.status(400).json({ error: '無效的檔案名稱' });
+    return;
+  }
   const contentType = getVideoContentType(filename);
 
-  if (!fs.existsSync(filePath)) {
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(filePath);
+  } catch {
     res.status(404).json({ error: '影片不存在' });
     return;
   }
-
-  const stat = fs.statSync(filePath);
   const range = req.headers.range;
 
   if (range) {
     const parts = range.replace(/bytes=/, '').split('-');
     const start = parseInt(parts[0], 10);
-    const end = parts[1] ? parseInt(parts[1], 10) : stat.size - 1;
+    const end = Math.min(parts[1] ? parseInt(parts[1], 10) : stat.size - 1, stat.size - 1);
     const chunkSize = end - start + 1;
 
     const stream = fs.createReadStream(filePath, { start, end });
@@ -123,8 +137,11 @@ router.get('/:filename', (req: Request, res: Response) => {
 
 // DELETE /api/videos/:filename (ADMIN only)
 router.delete('/:filename', authenticate, roleGuard('ADMIN'), (req: Request, res: Response) => {
-  const filePath = path.join(UPLOADS_DIR, req.params.filename as string);
-
+  const filePath = resolveUploadPath(req.params.filename as string);
+  if (!filePath) {
+    res.status(400).json({ error: '無效的檔案名稱' });
+    return;
+  }
   if (!fs.existsSync(filePath)) {
     res.status(404).json({ error: '影片不存在' });
     return;

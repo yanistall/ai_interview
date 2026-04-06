@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { InterviewReport, NonVerbalSnapshot } from '../types';
 import { CheckCircle, AlertTriangle, ArrowLeft, ScanFace, Smile, Video as VideoIcon, User, Bot } from 'lucide-react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { fetchVideoBlobUrl } from '../services/db';
+import { fetchVideoToken } from '../services/db';
 
 interface ReportViewProps {
   report: InterviewReport;
@@ -20,7 +20,6 @@ const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
 
   useEffect(() => {
     let mounted = true;
-    let objectUrl: string | null = null;
 
     const loadVideo = async () => {
       if (!report.videoPath) {
@@ -31,13 +30,9 @@ const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
 
       try {
         setVideoError(null);
-        const blobUrl = await fetchVideoBlobUrl(report.videoPath);
-        if (!mounted) {
-          URL.revokeObjectURL(blobUrl);
-          return;
-        }
-        objectUrl = blobUrl;
-        setVideoUrl(blobUrl);
+        const token = await fetchVideoToken(report.videoPath);
+        if (!mounted) return;
+        setVideoUrl(`/api/videos/${report.videoPath}?token=${token}`);
       } catch (e) {
         console.error('Load video failed', e);
         if (mounted) {
@@ -51,7 +46,6 @@ const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
 
     return () => {
       mounted = false;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [report.videoPath]);
 
@@ -278,7 +272,7 @@ const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
                   <RadarChart cx="50%" cy="50%" outerRadius="80%" data={chartData}>
                     <PolarGrid stroke="rgba(196, 154, 61, 0.1)" />
                     <PolarAngleAxis dataKey="subject" tick={{ fill: '#8a7f6e', fontSize: 11 }} />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} />
+                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} tickLine={false} />
                     <Radar name="Candidate" dataKey="A" stroke="#d4a857" fill="#d4a857" fillOpacity={0.15} strokeWidth={2} />
                   </RadarChart>
                 </ResponsiveContainer>

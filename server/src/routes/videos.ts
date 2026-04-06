@@ -32,7 +32,7 @@ const router = Router();
 
 const resolveUploadPath = (filename: string): string | null => {
   const resolved = path.resolve(UPLOADS_DIR, filename);
-  if (!resolved.startsWith(UPLOADS_DIR + path.sep) && resolved !== UPLOADS_DIR) return null;
+  if (!resolved.startsWith(UPLOADS_DIR + path.sep)) return null;
   return resolved;
 };
 

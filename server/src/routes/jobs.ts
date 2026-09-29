@@ -65,7 +65,7 @@ router.post('/', authenticate, roleGuard('ADMIN', 'ENTERPRISE'), async (req: Req
         title,
         description,
         persona: persona || 'FRIENDLY_HR',
-        voiceName: voiceName || 'Kore',
+        voiceName: voiceName || 'marin',
         questions: questions || [],
         createdById: req.user!.userId,
       },

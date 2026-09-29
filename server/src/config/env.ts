@@ -16,6 +16,7 @@ function requireEnv(name: string): string {
 export const env = {
   DATABASE_URL: requireEnv('DATABASE_URL'),
   ANTHROPIC_API_KEY: requireEnv('ANTHROPIC_API_KEY'),
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY?.trim() || undefined,
   JWT_SECRET: requireEnv('JWT_SECRET'),
   PORT: parseInt(process.env.PORT || '4000', 10),
 };

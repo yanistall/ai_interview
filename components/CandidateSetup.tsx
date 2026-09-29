@@ -29,7 +29,7 @@ const CandidateSetup: React.FC<CandidateSetupProps> = ({ onStart, onBack }) => {
       persona: Persona.FRIENDLY_HR, // Default friendly
       mandatoryQuestions: DEFAULT_MANDATORY_QUESTIONS,
       companyName: 'Demo Corp',
-      voiceName: 'Kore'
+      voiceName: 'marin'
     };
 
     // Simulate "Uploading CV" delay
@@ -82,7 +82,7 @@ const CandidateSetup: React.FC<CandidateSetupProps> = ({ onStart, onBack }) => {
           </div>
           
           <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-800">
-             <strong>提示：</strong> 面試過程中請保持攝像頭開啟，AI 將會觀察您的表情與非語言溝通技巧並給予即時反饋。
+             <strong>提示：</strong> 面試過程中請保持攝像頭開啟供錄影回放；能力評測只依據問答內容，不評分表情或其他非語言行為。
           </div>
         </div>
 

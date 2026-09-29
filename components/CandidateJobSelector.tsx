@@ -31,7 +31,11 @@ const CandidateJobSelector: React.FC<CandidateJobSelectorProps> = ({ onStartInte
     if (!file) return;
 
     if (!['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      alert("僅支援 PDF 或圖片格式 (JPG, PNG)");
+      alert('僅支援 PDF 或圖片格式 (JPG, PNG, WEBP)');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      alert('履歷檔案請控制在 8MB 內');
       return;
     }
 

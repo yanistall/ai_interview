@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { getAllReports, deleteReport } from '../services/storageService';
-import { deleteVideo } from '../services/db';
 import { InterviewReport } from '../types';
 import EnterpriseJobBuilder from './EnterpriseJobBuilder';
 import { Trash2, User, Calendar, LogOut, Search, Briefcase, FileText } from 'lucide-react';
@@ -9,6 +8,119 @@ interface AdminDashboardProps {
   onViewReport: (report: InterviewReport) => void;
   onLogout: () => void;
 }
+
+export const AdminReportsPanel = ({ reports, searchTerm, setSearchTerm, onViewReport, handleDelete }: {
+  reports: InterviewReport[];
+  searchTerm: string;
+  setSearchTerm: (value: string) => void;
+  onViewReport: (report: InterviewReport) => void;
+  handleDelete: (id: string, videoPath: string | undefined, event: React.MouseEvent) => void;
+}) => {
+  const filteredReports = reports.filter(report =>
+    report.candidateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    report.jobTitle.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  const completedReports = reports.filter(report => report.assessmentVersion === 'candidate-bplus-v1');
+  const reportsNeedingEvidence = reports.filter(report => report.assessment.dimensions.some(dimension =>
+    dimension.status === 'NOT_ASSESSABLE' || dimension.evidenceSufficiency === 'PARTIAL' || dimension.evidenceSufficiency === 'INSUFFICIENT'
+  ));
+  return (
+    <>
+        {/* Stats Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div className="glass-light rounded-xl p-6">
+                <div className="text-noir-500 text-xs tracking-widest uppercase mb-2">總面試人數</div>
+                <div className="text-4xl font-display font-bold text-noir-100">{reports.length}</div>
+            </div>
+            <div className="glass-light rounded-xl p-6">
+                <div className="text-noir-500 text-xs tracking-widest uppercase mb-2">完成四級評測</div>
+                <div className="text-4xl font-display font-bold text-amber-400">
+                    {completedReports.length}
+                </div>
+            </div>
+            <div className="glass-light rounded-xl p-6">
+                <div className="text-noir-500 text-xs tracking-widest uppercase mb-2">證據待補充</div>
+                <div className="text-4xl font-display font-bold text-emerald-400">
+                    {reportsNeedingEvidence.length}
+                </div>
+            </div>
+        </div>
+
+        {/* Search Bar */}
+        <div className="mb-6 relative">
+            <Search className="absolute left-4 top-3.5 text-noir-600" size={20} />
+            <input
+                type="text"
+                placeholder="搜尋候選人姓名或職位..."
+                className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-noir-900/50 border border-noir-700/30 text-noir-100 placeholder-noir-600 transition-all duration-300 input-noir focus:border-amber-500/30 outline-none"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
+        </div>
+
+        {/* Candidates List */}
+        <div className="glass-light rounded-xl overflow-hidden">
+            <table className="w-full text-left">
+                <thead>
+                    <tr className="border-b border-noir-800/50">
+                        <th className="px-6 py-4 font-medium text-noir-500 text-xs tracking-widest uppercase">候選人</th>
+                        <th className="px-6 py-4 font-medium text-noir-500 text-xs tracking-widest uppercase">應徵職位</th>
+                        <th className="px-6 py-4 font-medium text-noir-500 text-xs tracking-widest uppercase">面試時間</th>
+                        <th className="px-6 py-4 font-medium text-noir-500 text-xs tracking-widest uppercase">報告</th>
+                        <th className="px-6 py-4 font-medium text-noir-500 text-xs tracking-widest uppercase text-right">操作</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-noir-800/30">
+                    {filteredReports.length === 0 ? (
+                        <tr>
+                            <td colSpan={5} className="px-6 py-16 text-center text-noir-600">
+                                尚無面試資料
+                            </td>
+                        </tr>
+                    ) : (
+                        filteredReports.map((report) => (
+                            <tr
+                                key={report.id}
+                                onClick={() => onViewReport(report)}
+                                className="hover:bg-amber-500/5 cursor-pointer transition-colors duration-300 group"
+                            >
+                                <td className="px-6 py-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-noir-800 border border-noir-700/50 flex items-center justify-center text-noir-400 group-hover:border-amber-500/30 transition-colors">
+                                            <User size={14} />
+                                        </div>
+                                        <span className="font-medium text-noir-200">{report.candidateName}</span>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 text-noir-400">{report.jobTitle}</td>
+                                <td className="px-6 py-4 text-noir-500 text-sm">
+                                    <div className="flex items-center gap-1.5">
+                                        <Calendar size={13} />
+                                        {new Date(report.timestamp).toLocaleDateString()}
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <span className="text-xs font-bold px-3 py-1 rounded-full text-noir-300 bg-noir-800/50">
+                                        四級能力報告
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    <button
+                                        onClick={(e) => handleDelete(report.id, report.videoPath, e)}
+                                        className="p-2 text-noir-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-300"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </td>
+                            </tr>
+                        ))
+                    )}
+                </tbody>
+            </table>
+        </div>
+    </>
+  );
+};
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewReport, onLogout }) => {
   const [activeTab, setActiveTab] = useState<'REPORTS' | 'JOBS'>('JOBS');
@@ -23,30 +135,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewReport, onLogout 
     loadReports();
   }, []);
 
-  const handleDelete = async (id: string, videoPath: string | undefined, e: React.MouseEvent) => {
+  const handleDelete = async (id: string, _videoPath: string | undefined, e: React.MouseEvent) => {
     e.stopPropagation();
     if (confirm('確定要刪除這筆面試紀錄與相關影片嗎？')) {
-      await deleteReport(id);
-      if (videoPath) {
-        try {
-          await deleteVideo(videoPath);
-        } catch (err) {
-          console.warn("Could not delete video file", err);
-        }
+      try {
+        await deleteReport(id);
+        setReports(reports.filter(r => r.id !== id));
+      } catch (error) {
+        alert(error instanceof Error ? error.message : '刪除面試紀錄失敗');
       }
-      setReports(reports.filter(r => r.id !== id));
     }
-  };
-
-  const filteredReports = reports.filter(r =>
-    r.candidateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.jobTitle.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20';
-    if (score >= 60) return 'text-amber-400 bg-amber-500/10 border border-amber-500/20';
-    return 'text-red-400 bg-red-500/10 border border-red-500/20';
   };
 
   return (
@@ -93,110 +191,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewReport, onLogout 
         {activeTab === 'JOBS' ? (
             <EnterpriseJobBuilder onBack={() => {}} />
         ) : (
-            <>
-                {/* Stats Row */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                    <div className="glass-light rounded-xl p-6">
-                        <div className="text-noir-500 text-xs tracking-widest uppercase mb-2">總面試人數</div>
-                        <div className="text-4xl font-display font-bold text-noir-100">{reports.length}</div>
-                    </div>
-                    <div className="glass-light rounded-xl p-6">
-                        <div className="text-noir-500 text-xs tracking-widest uppercase mb-2">平均得分</div>
-                        <div className="text-4xl font-display font-bold text-amber-400">
-                            {reports.length > 0 ? Math.round(reports.reduce((acc, r) => acc + r.overallScore, 0) / reports.length) : 0}
-                        </div>
-                    </div>
-                    <div className="glass-light rounded-xl p-6">
-                        <div className="text-noir-500 text-xs tracking-widest uppercase mb-2">建議錄取率</div>
-                        <div className="text-4xl font-display font-bold text-emerald-400">
-                            {reports.length > 0 ? Math.round((reports.filter(r => r.hiringRecommendation === 'HIRE').length / reports.length) * 100) : 0}%
-                        </div>
-                    </div>
-                </div>
-
-                {/* Search Bar */}
-                <div className="mb-6 relative">
-                    <Search className="absolute left-4 top-3.5 text-noir-600" size={20} />
-                    <input
-                        type="text"
-                        placeholder="搜尋候選人姓名或職位..."
-                        className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-noir-900/50 border border-noir-700/30 text-noir-100 placeholder-noir-600 transition-all duration-300 input-noir focus:border-amber-500/30 outline-none"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-
-                {/* Candidates List */}
-                <div className="glass-light rounded-xl overflow-hidden">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="border-b border-noir-800/50">
-                                <th className="px-6 py-4 font-medium text-noir-500 text-xs tracking-widest uppercase">候選人</th>
-                                <th className="px-6 py-4 font-medium text-noir-500 text-xs tracking-widest uppercase">應徵職位</th>
-                                <th className="px-6 py-4 font-medium text-noir-500 text-xs tracking-widest uppercase">面試時間</th>
-                                <th className="px-6 py-4 font-medium text-noir-500 text-xs tracking-widest uppercase">AI 評分</th>
-                                <th className="px-6 py-4 font-medium text-noir-500 text-xs tracking-widest uppercase">建議</th>
-                                <th className="px-6 py-4 font-medium text-noir-500 text-xs tracking-widest uppercase text-right">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-noir-800/30">
-                            {filteredReports.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-16 text-center text-noir-600">
-                                        尚無面試資料
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredReports.map((report) => (
-                                    <tr
-                                        key={report.id}
-                                        onClick={() => onViewReport(report)}
-                                        className="hover:bg-amber-500/5 cursor-pointer transition-colors duration-300 group"
-                                    >
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-noir-800 border border-noir-700/50 flex items-center justify-center text-noir-400 group-hover:border-amber-500/30 transition-colors">
-                                                    <User size={14} />
-                                                </div>
-                                                <span className="font-medium text-noir-200">{report.candidateName}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-noir-400">{report.jobTitle}</td>
-                                        <td className="px-6 py-4 text-noir-500 text-sm">
-                                            <div className="flex items-center gap-1.5">
-                                                <Calendar size={13} />
-                                                {new Date(report.timestamp).toLocaleDateString()}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-2.5 py-1 rounded-lg font-mono font-bold text-sm ${getScoreColor(report.overallScore)}`}>
-                                                {report.overallScore}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`text-xs font-bold px-3 py-1 rounded-full ${
-                                                report.hiringRecommendation === 'HIRE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                                                report.hiringRecommendation === 'CONSIDER' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                                                'bg-red-500/10 text-red-400 border border-red-500/20'
-                                            }`}>
-                                                {report.hiringRecommendation}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <button
-                                                onClick={(e) => handleDelete(report.id, report.videoPath, e)}
-                                                className="p-2 text-noir-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-300"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </>
+            <AdminReportsPanel reports={reports} searchTerm={searchTerm} setSearchTerm={setSearchTerm} onViewReport={onViewReport} handleDelete={handleDelete} />
         )}
       </div>
     </div>

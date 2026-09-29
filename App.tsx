@@ -4,16 +4,19 @@ import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
 import ForgotPassword from './components/ForgotPassword';
 import LiveSession from './components/LiveSession';
+import InterviewConsent from './components/InterviewConsent';
+import InterviewCompletionNotice, { type InterviewCompletionStatus } from './components/InterviewCompletionNotice';
 import ReportView from './components/ReportView';
 import CandidateWorkspace from './components/CandidateWorkspace';
 import EnterpriseWorkspace from './components/EnterpriseWorkspace';
-import { InterviewConfig, TranscriptItem, InterviewReport, NonVerbalSnapshot } from './types';
+import { InterviewConfig, TranscriptItem, InterviewReport } from './types';
 import { generateInterviewReport } from './services/claudeService';
 import { saveReport } from './services/storageService';
 import { saveVideo } from './services/db';
+import { installInterviewCompletionGuard, startInterviewCompletion } from './services/interviewCompletion';
 import { Loader2, CheckCircle, LogOut, User, Building2 } from 'lucide-react';
 
-type AppState = 'LOGIN' | 'REGISTER' | 'FORGOT_PASSWORD' | 'PORTAL' | 'SESSION' | 'THANKS' | 'PROCESSING' | 'REPORT_DETAIL';
+type AppState = 'LOGIN' | 'REGISTER' | 'FORGOT_PASSWORD' | 'PORTAL' | 'CONSENT' | 'SESSION' | 'THANKS' | 'PROCESSING' | 'REPORT_DETAIL';
 
 const AppContent: React.FC = () => {
   const { user, isLoading, login, register, logout } = useAuth();
@@ -21,6 +24,8 @@ const AppContent: React.FC = () => {
   const [config, setConfig] = useState<InterviewConfig | null>(null);
   const [selectedReport, setSelectedReport] = useState<InterviewReport | null>(null);
   const [adminPortalMode, setAdminPortalMode] = useState<'PICK' | 'CANDIDATE' | 'ENTERPRISE'>('PICK');
+  const [completionStatus, setCompletionStatus] = useState<InterviewCompletionStatus>('IDLE');
+  const [portalRefreshKey, setPortalRefreshKey] = useState(0);
 
   // Sync auth state
   React.useEffect(() => {
@@ -33,6 +38,11 @@ const AppContent: React.FC = () => {
       }
     }
   }, [user, isLoading]);
+
+  React.useEffect(() => {
+    if (completionStatus !== 'SAVING') return;
+    return installInterviewCompletionGuard(window);
+  }, [completionStatus]);
 
   if (isLoading) {
     return (
@@ -55,59 +65,54 @@ const AppContent: React.FC = () => {
     logout();
     setConfig(null);
     setSelectedReport(null);
+    setCompletionStatus('IDLE');
     setAdminPortalMode('PICK');
     setCurrentState('LOGIN');
   };
 
   const handleCandidateStart = (newConfig: InterviewConfig) => {
+    if (!user) return;
     setConfig(newConfig);
-    setCurrentState('SESSION');
+    setCurrentState('CONSENT');
   };
 
-  const handleEndSession = async (
+  const handleEndSession = (
     transcript: TranscriptItem[],
-    nonVerbalSnapshots: NonVerbalSnapshot[],
     videoBlob: Blob | null
   ) => {
     if (!config) return;
 
     if (transcript.length === 0) {
       alert("沒有檢測到對話內容，面試已取消。");
+      setConfig(null);
       setCurrentState('PORTAL');
       return;
     }
 
-    setCurrentState('PROCESSING');
-    try {
-      // 1. Upload video if exists
-      let videoPath: string | undefined = undefined;
-      if (videoBlob) {
-        videoPath = await saveVideo(videoBlob);
-      }
-
-      // 2. Generate report using Claude (via backend)
-      const generatedReport = await generateInterviewReport(
-        transcript,
-        nonVerbalSnapshots,
-        config.jobTitle,
-        config.candidateName,
-        config.jobDescription
-      );
-
-      // 3. Save report to DB (with video path)
-      await saveReport({
-        ...generatedReport,
-        videoPath,
-        jobProfileId: config.jobId,
-      });
-
-      // 4. Show Thanks screen
-      setCurrentState('THANKS');
-    } catch (error) {
-      console.error("Report generation failed", error);
-      alert("資料處理失敗，請重試。");
-      setCurrentState('PORTAL');
-    }
+    const completedConfig = config;
+    void startInterviewCompletion(
+      { transcript, videoBlob, config: completedConfig },
+      {
+        saveVideo,
+        generateReport: generateInterviewReport,
+        saveReport,
+      },
+      {
+        onStarted: () => {
+          setConfig(null);
+          setCompletionStatus('SAVING');
+          setCurrentState('PORTAL');
+        },
+        onSuccess: () => {
+          setCompletionStatus('SUCCESS');
+          setPortalRefreshKey((key) => key + 1);
+        },
+        onError: (error) => {
+          console.error('Background interview storage failed', error);
+          setCompletionStatus('ERROR');
+        },
+      },
+    );
   };
 
   const handleAdminViewReport = (report: InterviewReport) => {
@@ -159,9 +164,11 @@ const AppContent: React.FC = () => {
 
       {currentState === 'PORTAL' && user?.role === 'CANDIDATE' && (
         <CandidateWorkspace
+          key={portalRefreshKey}
           userName={user.name}
           onStartInterview={handleCandidateStart}
           onViewReport={handleAdminViewReport}
+          onAccountDeleted={handleLogout}
         />
       )}
 
@@ -231,9 +238,11 @@ const AppContent: React.FC = () => {
             </button>
           </div>
           <CandidateWorkspace
+            key={portalRefreshKey}
             userName={user.name}
             onStartInterview={handleCandidateStart}
             onViewReport={handleAdminViewReport}
+            accountMode="admin"
           />
         </div>
       )}
@@ -252,7 +261,17 @@ const AppContent: React.FC = () => {
         </div>
       )}
 
-      {currentState === 'SESSION' && config && (
+      {currentState === 'CONSENT' && user && config && (
+        <InterviewConsent
+          onAgree={() => setCurrentState('SESSION')}
+          onCancel={() => {
+            setConfig(null);
+            setCurrentState('PORTAL');
+          }}
+        />
+      )}
+
+      {currentState === 'SESSION' && user && config && (
         <LiveSession config={config} onEndSession={handleEndSession} />
       )}
 
@@ -264,7 +283,7 @@ const AppContent: React.FC = () => {
           <div className="relative animate-fade-up">
             <Loader2 size={56} className="animate-spin text-amber-400 mb-8 mx-auto" />
             <h2 className="font-display text-3xl font-bold text-noir-50 text-center">正在將您的面試資料傳送至人資部門...</h2>
-            <p className="text-noir-500 mt-3 text-center">AI 正在整理對話紀錄、影片存檔與表情分析數據</p>
+            <p className="text-noir-500 mt-3 text-center">AI 正在整理對話紀錄、影片存檔與四級能力報告</p>
           </div>
         </div>
       )}
@@ -294,6 +313,13 @@ const AppContent: React.FC = () => {
 
       {currentState === 'REPORT_DETAIL' && selectedReport && (
         <ReportView report={selectedReport} onBack={handleBackToDashboard} />
+      )}
+
+      {currentState === 'PORTAL' && (
+        <InterviewCompletionNotice
+          status={completionStatus}
+          onDismiss={() => setCompletionStatus('IDLE')}
+        />
       )}
     </div>
   );

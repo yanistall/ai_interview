@@ -24,7 +24,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectRole }) => {
           AI <span className="text-amber-400 italic">Interview</span>
         </h1>
         <p className="text-noir-400 text-lg max-w-xl mx-auto leading-relaxed">
-          下一代智慧面試平台。結合即時視訊分析與情感辨識，為企業挖掘最合適的人才。
+          透過 AI 模擬面試練習，用回答證據理解能力表現，找到下一步成長方向。
         </p>
       </div>
 
@@ -72,7 +72,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectRole }) => {
             </div>
             <h2 className="font-display text-2xl font-bold text-noir-50 mb-3">企業後台管理</h2>
             <p className="text-noir-400 leading-relaxed text-sm">
-              查看候選人面試報告、AI 情感分析數據與綜合評分，協助您做出最佳錄用決策。
+              查看四級能力報告，了解回答證據、待補充內容與下一步練習建議，提供具體的能力回饋。
             </p>
             <div className="mt-8 flex items-center text-amber-400 font-medium text-sm group-hover:translate-x-2 transition-transform duration-500 tracking-wide">
               進入儀表板 <span className="ml-2">&rarr;</span>

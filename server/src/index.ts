@@ -7,6 +7,8 @@ import jobRoutes from './routes/jobs.js';
 import reportRoutes from './routes/reports.js';
 import videoRoutes from './routes/videos.js';
 import analysisRoutes from './routes/analysis.js';
+import realtimeRoutes from './routes/realtime.js';
+import { startRetentionSchedule } from './services/dataRetention.js';
 
 const app = express();
 
@@ -24,6 +26,7 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/videos', videoRoutes);
 app.use('/api/analysis', analysisRoutes);
+app.use('/api/realtime', realtimeRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -32,4 +35,5 @@ app.get('/api/health', (_req, res) => {
 
 app.listen(env.PORT, () => {
   console.log(`Server running on http://localhost:${env.PORT}`);
+  startRetentionSchedule();
 });

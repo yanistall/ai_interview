@@ -35,7 +35,3 @@ export const fetchVideoToken = async (filename: string): Promise<string> => {
   const data = await res.json();
   return data.token as string;
 };
-
-export const deleteVideo = async (videoPath: string): Promise<void> => {
-  await apiFetch(`/videos/${videoPath}`, { method: 'DELETE' });
-};

@@ -7,7 +7,7 @@ const router = Router();
 // POST /api/analysis/generate-report
 router.post('/generate-report', authenticate, async (req: Request, res: Response) => {
   try {
-    const { transcript, nonVerbalSnapshots, jobTitle, candidateName, jobDescription } = req.body;
+    const { transcript, jobTitle, candidateName, jobDescription } = req.body;
 
     if (!transcript || !jobTitle || !candidateName) {
       res.status(400).json({ error: '請提供 transcript、jobTitle 和 candidateName' });
@@ -16,7 +16,6 @@ router.post('/generate-report', authenticate, async (req: Request, res: Response
 
     const report = await generateInterviewReport({
       transcript,
-      nonVerbalSnapshots: nonVerbalSnapshots || [],
       jobTitle,
       candidateName,
       jobDescription: jobDescription || '',

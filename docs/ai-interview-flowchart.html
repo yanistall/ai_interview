@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Interview 系統流程圖</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  /* ── 螢幕樣式 ── */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Helvetica Neue', Arial, 'PingFang TC', sans-serif;
+    background: #f8fafc;
+    color: #1e293b;
+    padding: 40px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding-bottom: 24px;
+    border-bottom: 2px solid #e2e8f0;
+  }
+
+  header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
+  }
+
+  header .meta {
+    font-size: 13px;
+    color: #94a3b8;
+  }
+
+  .section {
+    margin-bottom: 48px;
+    page-break-inside: avoid;
+  }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #6366f1;
+    border-left: 4px solid #6366f1;
+    padding-left: 12px;
+    margin-bottom: 20px;
+  }
+
+  .section-desc {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 16px;
+    padding-left: 16px;
+  }
+
+  .mermaid-wrap {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 32px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    overflow-x: auto;
+  }
+
+  .mermaid {
+    display: flex;
+    justify-content: center;
+  }
+
+  footer {
+    text-align: center;
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .print-hint {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 14px 20px;
+    font-size: 13px;
+    color: #1d4ed8;
+    margin-bottom: 40px;
+    text-align: center;
+  }
+
+  .print-hint strong { font-weight: 600; }
+
+  /* ── 列印樣式 ── */
+  @media print {
+    @page {
+      size: A3 landscape;
+      margin: 15mm 12mm;
+    }
+
+    body {
+      background: #fff;
+      padding: 0;
+      max-width: 100%;
+      color: #000;
+    }
+
+    .print-hint { display: none; }
+
+    header {
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+    }
+
+    header h1 { font-size: 22px; }
+
+    .section {
+      margin-bottom: 0;
+      page-break-before: always;
+    }
+
+    .section:first-of-type {
+      page-break-before: avoid;
+    }
+
+    .mermaid-wrap {
+      border: 1px solid #d1d5db;
+      box-shadow: none;
+      padding: 20px;
+      page-break-inside: avoid;
+    }
+
+    footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      border-top: 1px solid #e5e7eb;
+      padding: 8px;
+      background: #fff;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="print-hint">
+  列印為 PDF：<strong>Cmd + P</strong>（Mac）或 <strong>Ctrl + P</strong>（Windows）→ 目的地選「另存為 PDF」→ 紙張選 <strong>A3 橫向</strong> → 儲存
+</div>
+
+<header>
+  <h1>AI Interview 系統流程圖</h1>
+  <div class="meta">完整使用者旅程 + 技術架構資料流 ｜ 2026-04-30</div>
+</header>
+
+<!-- Section 1: 使用者旅程 -->
+<div class="section">
+  <div class="section-title">一、使用者旅程流程</div>
+  <div class="section-desc">涵蓋三種角色（Candidate / Enterprise / Admin）的完整導航狀態機</div>
+  <div class="mermaid-wrap">
+    <div class="mermaid">
+flowchart TD
+    START([▶ 開始]) --> LOGIN
+
+    subgraph AUTH ["🔐 認證系統"]
+        LOGIN["登入頁面\nLOGIN"] -->|輸入帳密| VALIDATE{JWT 驗證}
+        VALIDATE -->|失敗| LOGIN
+        LOGIN --> REGISTER["註冊頁面\nREGISTER"]
+        LOGIN --> FORGOT["忘記密碼\nFORGOT_PASSWORD"]
+        FORGOT --> RESET["發送重設信件"]
+        REGISTER -->|成功| VALIDATE
+    end
+
+    VALIDATE -->|成功| ROLE{角色判斷}
+
+    ROLE -->|CANDIDATE| CP["👤 求職者入口\nPORTAL"]
+    ROLE -->|ENTERPRISE| EP["🏢 企業入口\nPORTAL"]
+    ROLE -->|ADMIN| AP["⚙️ 管理員入口\nPORTAL"]
+
+    subgraph CANDIDATE_FLOW ["求職者流程"]
+        CP --> JOBLIST["瀏覽職缺列表\nGET /api/jobs"]
+        JOBLIST --> SELECTJOB["選擇職缺\n確認 Persona / 語音"]
+        SELECTJOB --> SESSION["🎙️ 即時面試\nSESSION"]
+        SESSION --> ENDSESSION["結束面試"]
+        ENDSESSION --> PROC["⏳ 報告處理\nPROCESSING"]
+        PROC --> THANKS["✅ 完成\nTHANKS"]
+        THANKS --> CP
+        CP --> MYREPORTS["查看自己的報告"]
+        MYREPORTS --> REPORTDETAIL_C["報告詳情\n+ 影片回放"]
+    end
+
+    subgraph ENTERPRISE_FLOW ["企業流程"]
+        EP --> JOBMGMT["管理職缺\nCRUD /api/jobs"]
+        EP --> VIEWREPORTS["查看應徵者報告\nGET /api/reports"]
+        VIEWREPORTS --> REPORTDETAIL_E["報告詳情\n+ 影片回放"]
+    end
+
+    subgraph ADMIN_FLOW ["管理員流程"]
+        AP --> SWITCH["切換 Candidate ⟷ Enterprise 模式"]
+        AP --> ALLREPORTS["查看所有報告"]
+        AP --> VIDEOMGMT["影片管理\nDELETE /api/videos"]
+        ALLREPORTS --> REPORTDETAIL_A["報告詳情\n+ 影片回放"]
+    end
+
+    style AUTH fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a5f
+    style CANDIDATE_FLOW fill:#f0fdf4,stroke:#22c55e,stroke-width:2px,color:#14532d
+    style ENTERPRISE_FLOW fill:#faf5ff,stroke:#a855f7,stroke-width:2px,color:#4a1d96
+    style ADMIN_FLOW fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#78350f
+    </div>
+  </div>
+</div>
+
+<!-- Section 2: 技術架構 -->
+<div class="section">
+  <div class="section-title">二、技術架構資料流</div>
+  <div class="section-desc">Frontend ↔ Backend API ↔ AI 服務 ↔ 資料持久化層</div>
+  <div class="mermaid-wrap">
+    <div class="mermaid">
+flowchart LR
+    subgraph FE ["🖥️ 前端 React 19 + Vite（port 3000）"]
+        direction TB
+        APPTSX["App.tsx\n狀態機 appState enum"]
+        AUTHCTX["AuthContext\nJWT + 使用者狀態\nlocalStorage: auth_token"]
+        LIVESESS["LiveSession.tsx\n音訊與錄影擷取\n逐字稿（含 Realtime item ID）"]
+        SERVICES["Service Layer\napiFetch → /api/*\nBearer JWT 自動注入"]
+        APPTSX --> AUTHCTX
+        APPTSX --> LIVESESS
+        APPTSX --> SERVICES
+    end
+
+    subgraph BE ["⚙️ 後端 Express + TypeScript（port 4000）"]
+        direction TB
+        AUTHMW["JWT Middleware\n驗證所有受保護路由"]
+        RAAUTH["/api/auth\nregister / login / me\nforgot-password / reset-password / profile"]
+        RAJOBS["/api/jobs\nGET / POST / PUT / DELETE\n角色守衛：ENTERPRISE / ADMIN"]
+        RAREPORTS["/api/reports\nGET / POST / DELETE\n角色過濾：CANDIDATE / ENTERPRISE / ADMIN"]
+        RAVIDEOS["/api/videos\nupload（Multer 500MB）\ntoken（短效 JWT）/ stream（206 Range）"]
+        RAANALYSIS["/api/analysis\ngenerate-report\n呼叫 claudeService.ts"]
+        AUTHMW --> RAAUTH
+        AUTHMW --> RAJOBS
+        AUTHMW --> RAREPORTS
+        AUTHMW --> RAVIDEOS
+        AUTHMW --> RAANALYSIS
+    end
+
+    subgraph AI ["🤖 AI 服務"]
+        OPENAI["OpenAI Realtime API\ngpt-realtime-1.5\nWebRTC 音訊與事件\nAPI Key：僅後端環境變數"]
+        CLAUDE["Anthropic Claude Sonnet 4.5\nB+ 四級能力報告\n證據導向 Prompt\nAPI Key：後端環境變數"]
+    end
+
+    subgraph DB ["🗄️ 資料持久化"]
+        PG["PostgreSQL\nPrisma ORM\nUser / JobProfile / InterviewReport"]
+        FS["檔案系統\nserver/uploads/\n面試影片 .webm"]
+    end
+
+    FE -->|"HTTP /api/* + Bearer JWT\nVite dev proxy → :4000"| BE
+    LIVESESS -.->|"WebRTC SDP 經 /api/realtime/session 建立\n音訊與事件通道"| OPENAI
+    RAANALYSIS -->|"Anthropic SDK\n@anthropic-ai/sdk"| CLAUDE
+    BE --> PG
+    RAVIDEOS --> FS
+    FS -->|"HTTP 206 Range Request\n需附短效 JWT Token"| FE
+
+    OPENAI -->|"AI 音訊回應\n雙方逐字稿事件"| LIVESESS
+    CLAUDE -->|"candidate-bplus-v1 JSON\n四級能力 + 證據 + 行動"| RAANALYSIS
+
+    style FE fill:#eff6ff,stroke:#38bdf8,stroke-width:2px,color:#0c4a6e
+    style BE fill:#f0fdf4,stroke:#4ade80,stroke-width:2px,color:#14532d
+    style AI fill:#faf5ff,stroke:#c084fc,stroke-width:2px,color:#4a1d96
+    style DB fill:#fff7ed,stroke:#fb923c,stroke-width:2px,color:#7c2d12
+    </div>
+  </div>
+</div>
+
+<!-- Section 3: 面試 Session 時序圖 -->
+<div class="section">
+  <div class="section-title">三、面試 Session 詳細時序</div>
+  <div class="section-desc">從開始面試到報告儲存完成的完整步驟與服務互動</div>
+  <div class="mermaid-wrap">
+    <div class="mermaid">
+sequenceDiagram
+    participant U as 使用者（瀏覽器）
+    participant LS as LiveSession.tsx
+    participant OA as OpenAI Realtime API
+    participant BE as Express Backend
+    participant CL as Claude Sonnet 4.5
+    participant DB as PostgreSQL<br/>/ 檔案系統
+
+    U->>LS: 開始面試<br/>（職缺 JD + Persona + 履歷）
+    LS->>BE: POST /api/realtime/session<br/>（SDP + Persona + 問題清單 + JD + 履歷內容）
+    BE->>OA: 建立 gpt-realtime-1.5 WebRTC call<br/>（後端持有 API Key）
+    OA-->>BE: SDP answer
+    BE-->>LS: SDP answer
+
+    rect rgb(240, 253, 244)
+        Note over U,OA: 面試進行中（N 輪問答）
+        U->>LS: 說話（麥克風擷取）
+        LS->>OA: WebRTC 音訊串流
+        OA-->>LS: AI 語音 + 雙方逐字稿事件
+        LS->>U: 播放 AI 語音
+        LS->>LS: 記錄 TranscriptItem[]<br/>保留 Realtime item ID 與相對時間
+    end
+
+    U->>LS: 點擊「結束面試」
+    LS->>OA: 關閉 WebRTC 連線
+
+    rect rgb(239, 246, 255)
+        Note over LS,DB: 報告生成流程
+        LS->>BE: POST /api/videos/upload<br/>（videoBlob WebM，Multer）
+        BE->>DB: 儲存影片至 server/uploads/
+        BE-->>LS: { videoPath }
+
+        LS->>BE: POST /api/analysis/generate-report<br/>（transcript, jobTitle, candidateName, jobDescription）
+        BE->>CL: Anthropic SDK<br/>（B+ 評測規則 + 逐字稿 + 職缺需求）
+        CL-->>BE: candidate-bplus-v1 JSON<br/>（四級能力、引用證據、缺少內容、下一步行動）
+        BE-->>LS: 完整分析結果
+
+        LS->>BE: POST /api/reports<br/>（report + videoPath + jobProfileId）
+        BE->>DB: 儲存 InterviewReport 至 PostgreSQL
+        BE-->>LS: { success: true }
+    end
+
+    LS->>U: 導向 THANKS 頁面
+    U->>BE: GET /api/videos/token/:filename<br/>（取得影片短效 JWT）
+    BE-->>U: { token }（5 分鐘有效）
+    U->>BE: GET /api/videos/:filename?token=JWT<br/>HTTP 206 Range Request
+    BE-->>U: 影片串流播放
+    </div>
+  </div>
+</div>
+
+<footer>
+  AI Interview v2 ｜ React 19 + Express + PostgreSQL + OpenAI Realtime + Claude Sonnet ｜ 2026-09-23
+</footer>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#e0e7ff',
+      primaryTextColor: '#1e293b',
+      primaryBorderColor: '#6366f1',
+      lineColor: '#94a3b8',
+      secondaryColor: '#f1f5f9',
+      tertiaryColor: '#f8fafc',
+      background: '#ffffff',
+      mainBkg: '#f8fafc',
+      nodeBorder: '#cbd5e1',
+      clusterBkg: '#f1f5f9',
+      titleColor: '#0f172a',
+      edgeLabelBackground: '#ffffff',
+      fontSize: '14px',
+      fontFamily: 'Helvetica Neue, Arial, PingFang TC, sans-serif'
+    },
+    flowchart: { htmlLabels: true, curve: 'basis', padding: 20 },
+    sequence: {
+      actorMargin: 80,
+      messageMargin: 35,
+      boxTextMargin: 8,
+      noteMargin: 12,
+      useMaxWidth: true
+    }
+  });
+</script>
+</body>
+</html>

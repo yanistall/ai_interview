@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
 import prisma from '../db/client.js';
 import { env } from '../config/env.js';
 import { authenticate } from '../middleware/auth.js';
+import { eraseCandidateData } from '../services/dataRetention.js';
 
 const router = Router();
 
@@ -116,7 +116,7 @@ router.post('/login', async (req: Request, res: Response) => {
 
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, email: true, passwordHash: true, name: true, role: true },
+      select: { id: true, email: true, passwordHash: true, name: true, role: true, closedAt: true },
     });
     if (!user) {
       res.status(401).json({ error: 'Email 或密碼錯誤' });
@@ -124,7 +124,7 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) {
+    if (!valid || user.closedAt) {
       res.status(401).json({ error: 'Email 或密碼錯誤' });
       return;
     }
@@ -145,80 +145,55 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/auth/forgot-password
-router.post('/forgot-password', async (req: Request, res: Response) => {
+const verifyCandidatePassword = async (userId: string, password: unknown): Promise<boolean> => {
+  if (typeof password !== 'string' || !password) return false;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true, role: true } });
+  return !!user && user.role === 'CANDIDATE' && bcrypt.compare(password, user.passwordHash);
+};
+
+// Account closure disables access immediately; the scheduled purge removes data after 30 days.
+router.post('/close-account', authenticate, async (req: Request, res: Response) => {
   try {
-    const { email } = req.body;
-
-    if (!email) {
-      res.status(400).json({ error: '請提供 email' });
+    if (!await verifyCandidatePassword(req.user!.userId, req.body?.password)) {
+      res.status(403).json({ error: '密碼錯誤或帳號不支援此操作' });
       return;
     }
-
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: { id: true, email: true },
-    });
-    if (!user) {
-      // Don't reveal whether user exists
-      res.json({ message: '如果此 email 已註冊，將會收到重設密碼的指示' });
-      return;
-    }
-
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExp = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-
+    const closedAt = new Date();
     await prisma.user.update({
-      where: { id: user.id },
-      data: { resetToken, resetTokenExp },
+      where: { id: req.user!.userId },
+      data: { closedAt, resetToken: null, resetTokenExp: null },
     });
-
-    // In production, send email with resetToken
-    // For now, return it directly (development only)
-    res.json({
-      message: '如果此 email 已註冊，將會收到重設密碼的指示',
-      resetToken, // Remove in production
-    });
+    res.json({ message: '帳號已註銷，資料將於 30 天後刪除', purgeAt: new Date(closedAt.getTime() + 30 * 86400000) });
   } catch (error) {
-    console.error('Forgot password error:', error);
-    res.status(500).json({ error: '處理失敗' });
+    console.error('Close account error:', error);
+    res.status(500).json({ error: '註銷帳號失敗' });
   }
 });
 
-// POST /api/auth/reset-password
-router.post('/reset-password', async (req: Request, res: Response) => {
+// A verified candidate's explicit request erases account data immediately.
+router.delete('/my-data', authenticate, async (req: Request, res: Response) => {
   try {
-    const { token, newPassword } = req.body;
-
-    if (!token || !newPassword) {
-      res.status(400).json({ error: '請提供 token 和 newPassword' });
+    if (!await verifyCandidatePassword(req.user!.userId, req.body?.password)) {
+      res.status(403).json({ error: '密碼錯誤或帳號不支援此操作' });
       return;
     }
-
-    const user = await prisma.user.findFirst({
-      where: {
-        resetToken: token,
-        resetTokenExp: { gt: new Date() },
-      },
-    });
-
-    if (!user) {
-      res.status(400).json({ error: '重設 token 無效或已過期' });
-      return;
-    }
-
-    const passwordHash = await bcrypt.hash(newPassword, 12);
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { passwordHash, resetToken: null, resetTokenExp: null },
-    });
-
-    res.json({ message: '密碼重設成功' });
+    await eraseCandidateData(req.user!.userId);
+    res.json({ message: '個人資料與面試紀錄已刪除' });
   } catch (error) {
-    console.error('Reset password error:', error);
-    res.status(500).json({ error: '密碼重設失敗' });
+    console.error('Erase candidate data error:', error);
+    res.status(500).json({ error: '刪除資料失敗，請稍後重試或聯絡管理員' });
   }
 });
+
+// Self-service resets stay unavailable until a private delivery channel exists.
+// Disable redemption too, so tokens exposed by older versions cannot be used.
+const passwordResetUnavailable = (_req: Request, res: Response): void => {
+  res.set('Cache-Control', 'no-store');
+  res.status(503).json({ error: '目前暫停自助密碼重設，請聯絡系統管理員。' });
+};
+
+router.post('/forgot-password', passwordResetUnavailable);
+router.post('/reset-password', passwordResetUnavailable);
 
 // GET /api/auth/me
 router.get('/me', authenticate, async (req: Request, res: Response) => {

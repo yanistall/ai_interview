@@ -4,7 +4,15 @@ import { apiFetch } from './api';
 export const saveReport = async (report: Omit<InterviewReport, 'id'> & { id?: string; videoPath?: string; jobProfileId?: string }): Promise<InterviewReport> => {
   const res = await apiFetch('/reports', {
     method: 'POST',
-    body: JSON.stringify(report),
+    body: JSON.stringify({
+      candidateName: report.candidateName,
+      jobTitle: report.jobTitle,
+      videoPath: report.videoPath,
+      fullTranscript: report.fullTranscript,
+      assessmentVersion: report.assessmentVersion,
+      assessment: report.assessment,
+      jobProfileId: report.jobProfileId,
+    }),
   });
 
   if (!res.ok) {
@@ -35,5 +43,9 @@ export const getReportById = async (id: string): Promise<InterviewReport | undef
 };
 
 export const deleteReport = async (id: string): Promise<void> => {
-  await apiFetch(`/reports/${id}`, { method: 'DELETE' });
+  const res = await apiFetch(`/reports/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || '刪除報告失敗');
+  }
 };

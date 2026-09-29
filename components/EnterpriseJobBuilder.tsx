@@ -19,7 +19,7 @@ const EnterpriseJobBuilder: React.FC<EnterpriseJobBuilderProps> = ({ onBack, def
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [persona, setPersona] = useState<Persona>(Persona.FRIENDLY_HR);
-  const [voiceName, setVoiceName] = useState('Kore');
+  const [voiceName, setVoiceName] = useState('marin');
   const [questions, setQuestions] = useState<string[]>([PRESET_QUESTIONS[0], PRESET_QUESTIONS[1]]);
   const [newQuestion, setNewQuestion] = useState('');
   const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
@@ -48,7 +48,7 @@ const EnterpriseJobBuilder: React.FC<EnterpriseJobBuilderProps> = ({ onBack, def
     setTitle('');
     setDescription('');
     setPersona(Persona.FRIENDLY_HR);
-    setVoiceName('Kore');
+    setVoiceName('marin');
     setQuestions([PRESET_QUESTIONS[0], PRESET_QUESTIONS[1]]);
     setEditingQuestionIndex(null);
     setEditingQuestionText('');
@@ -62,7 +62,7 @@ const EnterpriseJobBuilder: React.FC<EnterpriseJobBuilderProps> = ({ onBack, def
     setTitle(job.title);
     setDescription(job.description);
     setPersona(job.persona);
-    setVoiceName(job.voiceName);
+    setVoiceName(job.voiceName === 'Charon' ? 'cedar' : job.voiceName === 'cedar' ? 'cedar' : 'marin');
     setQuestions(job.questions);
     setIsEditing(true);
   };

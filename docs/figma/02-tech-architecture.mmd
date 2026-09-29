@@ -1,0 +1,50 @@
+flowchart LR
+    subgraph FE ["🖥️ 前端 React 19 + Vite（port 3000）"]
+        direction TB
+        APPTSX["App.tsx\n狀態機 appState enum"]
+        AUTHCTX["AuthContext\nJWT + 使用者狀態\nlocalStorage: auth_token"]
+        LIVESESS["LiveSession.tsx\n音視訊擷取\n逐字稿 + 表情快照"]
+        SERVICES["Service Layer\napiFetch → /api/*\nBearer JWT 自動注入"]
+        APPTSX --> AUTHCTX
+        APPTSX --> LIVESESS
+        APPTSX --> SERVICES
+    end
+
+    subgraph BE ["⚙️ 後端 Express + TypeScript（port 4000）"]
+        direction TB
+        AUTHMW["JWT Middleware\n驗證所有受保護路由"]
+        RAAUTH["/api/auth\nregister / login / me\nforgot-password / reset-password"]
+        RAJOBS["/api/jobs\nGET / POST / PUT / DELETE\n角色守衛：ENTERPRISE / ADMIN"]
+        RAREPORTS["/api/reports\nGET / POST / DELETE\n角色過濾：CANDIDATE / ENTERPRISE / ADMIN"]
+        RAVIDEOS["/api/videos\nupload（Multer 500MB）\ntoken（短效 JWT）/ stream（206 Range）"]
+        RAANALYSIS["/api/analysis\ngenerate-report\n呼叫 claudeService.ts"]
+        AUTHMW --> RAAUTH
+        AUTHMW --> RAJOBS
+        AUTHMW --> RAREPORTS
+        AUTHMW --> RAVIDEOS
+        AUTHMW --> RAANALYSIS
+    end
+
+    subgraph AI ["🤖 AI 服務"]
+        GEMINI["Google Gemini 2.5 Flash\nNative Audio Live API\n雙向 WebSocket 音訊串流\nAPI Key：前端環境變數"]
+        CLAUDE["Anthropic Claude Sonnet 4.5\n面試報告生成分析\nAPI Key：後端環境變數"]
+    end
+
+    subgraph DB ["🗄️ 資料持久化"]
+        PG["PostgreSQL\nPrisma ORM\nUser / JobProfile / InterviewReport"]
+        FS["檔案系統\nserver/uploads/\n面試影片 .webm"]
+    end
+
+    FE -->|"HTTP /api/* + Bearer JWT\nVite dev proxy → :4000"| BE
+    LIVESESS -.->|"WebSocket 直連\ngemini-2.5-flash-native-audio"| GEMINI
+    RAANALYSIS -->|"Anthropic SDK\n@anthropic-ai/sdk"| CLAUDE
+    BE --> PG
+    RAVIDEOS --> FS
+    FS -->|"HTTP 206 Range Request\n需附短效 JWT Token"| FE
+    GEMINI -->|"音訊回應 PCM 24kHz\n逐字稿 JSON"| LIVESESS
+    CLAUDE -->|"InterviewReport JSON\n評分 + 維度分析 + 建議"| RAANALYSIS
+
+    style FE fill:#eff6ff,stroke:#38bdf8,stroke-width:2px,color:#0c4a6e
+    style BE fill:#f0fdf4,stroke:#4ade80,stroke-width:2px,color:#14532d
+    style AI fill:#faf5ff,stroke:#c084fc,stroke-width:2px,color:#4a1d96
+    style DB fill:#fff7ed,stroke:#fb923c,stroke-width:2px,color:#7c2d12

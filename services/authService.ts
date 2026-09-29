@@ -64,32 +64,6 @@ export const register = async (email: string, password: string, name: string, ro
   return data;
 };
 
-export const forgotPassword = async (email: string): Promise<{ message: string; resetToken?: string }> => {
-  const res = await apiFetch('/auth/forgot-password', {
-    method: 'POST',
-    body: JSON.stringify({ email }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error || '處理失敗');
-  }
-
-  return res.json();
-};
-
-export const resetPassword = async (token: string, newPassword: string): Promise<void> => {
-  const res = await apiFetch('/auth/reset-password', {
-    method: 'POST',
-    body: JSON.stringify({ token, newPassword }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error || '密碼重設失敗');
-  }
-};
-
 export const getMe = async (): Promise<UserProfile> => {
   const res = await apiFetch('/auth/me');
 
@@ -122,6 +96,16 @@ export const updateMyProfile = async (payload: {
 
 export const logout = (): void => {
   clearAuthToken();
+};
+
+export const closeMyAccount = async (password: string): Promise<void> => {
+  const res = await apiFetch('/auth/close-account', { method: 'POST', body: JSON.stringify({ password }) });
+  if (!res.ok) throw new Error((await res.json()).error || '註銷帳號失敗');
+};
+
+export const eraseMyData = async (password: string): Promise<void> => {
+  const res = await apiFetch('/auth/my-data', { method: 'DELETE', body: JSON.stringify({ password }) });
+  if (!res.ok) throw new Error((await res.json()).error || '刪除資料失敗');
 };
 
 export const isLoggedIn = (): boolean => {

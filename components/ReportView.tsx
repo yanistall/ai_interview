@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { InterviewReport, NonVerbalSnapshot } from '../types';
-import { CheckCircle, AlertTriangle, ArrowLeft, ScanFace, Smile, Video as VideoIcon, User, Bot } from 'lucide-react';
-import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import { InterviewReport, AssessmentLevel, DimensionCode, EvidenceReference, EvidenceSufficiency, TechnicalQualityStatus, TranscriptItem } from '../types';
+import { ArrowLeft, Video as VideoIcon, User, Bot } from 'lucide-react';
 import { fetchVideoToken } from '../services/db';
 
 interface ReportViewProps {
@@ -9,10 +8,39 @@ interface ReportViewProps {
   onBack: () => void;
 }
 
+const dimensionLabels: Record<DimensionCode, string> = {
+  ANSWER_EVIDENCE: '回答具體度與證據',
+  CONTENT_CLARITY: '內容組織與可理解性',
+  JOB_COMPETENCY_MATCH: '職務能力匹配',
+  PROFESSIONAL_DEPTH: '專業深度與問題解決',
+};
+const dimensionOrder: DimensionCode[] = ['ANSWER_EVIDENCE', 'CONTENT_CLARITY', 'JOB_COMPETENCY_MATCH', 'PROFESSIONAL_DEPTH'];
+const levelLabels: Record<AssessmentLevel, string> = {
+  DEVELOPING: '發展中', BASIC: '基本達標', PROFICIENT: '穩定展現', DISTINCT_STRENGTH: '明確優勢',
+};
+const sufficiencyLabels: Record<EvidenceSufficiency, string> = {
+  SUFFICIENT: '充分', PARTIAL: '部分', INSUFFICIENT: '不足',
+};
+const technicalQualityLabels: Record<TechnicalQualityStatus, string> = {
+  CLEAR: '未發現明顯干擾', MINOR_ISSUES: '疑似局部技術或轉錄干擾',
+  PARTIAL: '部分內容無法可靠判定', SEVERE: '整體資訊不足，建議重新練習',
+};
+
+export const findEvidenceTranscriptIndex = (transcript: TranscriptItem[], time: number, itemId?: string): number => {
+  if (itemId) {
+    const index = transcript.findIndex(item => item.itemId === itemId);
+    if (index >= 0) return index;
+  }
+  // Preserve exact timestamps; do not infer another turn from quoted words.
+  return transcript.reduce((closest, item, index) => (
+    closest === -1 || Math.abs(item.relativeTime - time) < Math.abs(transcript[closest].relativeTime - time)
+      ? index : closest
+  ), -1);
+};
+
 const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
-  const [currentSnapshot, setCurrentSnapshot] = useState<NonVerbalSnapshot | null>(null);
   const [activeIndex, setActiveIndex] = useState<number>(-1);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -70,58 +98,34 @@ const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
       setActiveIndex((prev) => (prev === index ? prev : index));
     }
 
-    // Find the closest non-verbal snapshot within the last 4 seconds
-    if (report.nonVerbalLog) {
-      const snap = report.nonVerbalLog.find(s => t >= s.relativeTime && t < s.relativeTime + 4);
-      setCurrentSnapshot((prev) => {
-        const next = snap || null;
-        if (!prev && !next) return prev;
-        if (prev && next && prev.timestamp === next.timestamp) return prev;
-        return next;
-      });
-    }
   };
 
-  const jumpToTime = (time: number) => {
+  const jumpToTime = (time: number, itemId?: string) => {
+    const index = findEvidenceTranscriptIndex(report.fullTranscript, time, itemId);
+    setActiveIndex(index);
+    if (index >= 0) {
+      transcriptContainerRef.current?.querySelector(`#transcript-item-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
     if (videoRef.current) {
-        videoRef.current.currentTime = Math.max(0, time - 0.5);
-        videoRef.current.play();
+        videoRef.current.currentTime = Math.max(0, time);
+        void videoRef.current.play().catch(() => { /* Native controls remain available if autoplay is blocked. */ });
     }
   };
 
-  // Chart Data Preparation
-  const dim = report.dimensionScores;
-  const chartData = dim ? [
-    { subject: '回答品質', A: dim.answerQuality, fullMark: 100 },
-    { subject: '溝通流暢', A: dim.communicationSkill, fullMark: 100 },
-    { subject: '職位匹配', A: dim.jobFit, fullMark: 100 },
-    { subject: '專業深度', A: dim.professionalDepth, fullMark: 100 },
-    { subject: '非語言表現', A: dim.nonVerbalPresence, fullMark: 100 },
-  ] : [
-    { subject: '回答品質', A: report.overallScore, fullMark: 100 },
-    { subject: '溝通流暢', A: report.overallScore, fullMark: 100 },
-    { subject: '職位匹配', A: report.overallScore, fullMark: 100 },
-    { subject: '專業深度', A: report.questionAnalysis.reduce((acc, q) => acc + q.score, 0) / (report.questionAnalysis.length || 1), fullMark: 100 },
-    { subject: '非語言表現', A: report.nonVerbalAnalysis?.bodyLanguageScore || 50, fullMark: 100 },
-  ];
-
-  const getRecommendationColor = (rec: string) => {
-    switch (rec) {
-      case 'HIRE': return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
-      case 'CONSIDER': return 'text-amber-400 bg-amber-500/10 border-amber-500/20';
-      case 'NO_HIRE': return 'text-red-400 bg-red-500/10 border-red-500/20';
-      default: return 'text-noir-400 bg-noir-800';
-    }
-  };
-
-  const getRecommendationText = (rec: string) => {
-    switch (rec) {
-      case 'HIRE': return '建議錄用';
-      case 'CONSIDER': return '列入考慮';
-      case 'NO_HIRE': return '不予錄用';
-      default: return rec;
-    }
-  };
+  const { assessment } = report;
+  const renderEvidence = (references: EvidenceReference[]) => references.length ? (
+    <ul className="space-y-3">
+      {references.map((evidence, index) => (
+        <li key={index} className="border-l-2 border-amber-500/30 pl-3">
+          <blockquote className="text-noir-200 text-sm leading-relaxed">「{evidence.quote}」</blockquote>
+          <p className="text-sm text-noir-400 mt-1">{evidence.rationale}</p>
+          <button type="button" onClick={() => jumpToTime(evidence.relativeTime, evidence.transcriptItemId)} className="text-sm text-amber-400 mt-2 hover:underline">
+            {report.videoPath ? '播放／查看逐字稿' : '查看逐字稿'} {Math.floor(evidence.relativeTime / 60)}:{Math.floor(evidence.relativeTime % 60).toString().padStart(2, '0')}
+          </button>
+        </li>
+      ))}
+    </ul>
+  ) : <p className="text-sm text-noir-500">目前沒有可引用的回答證據。</p>;
 
   return (
     <div className="h-full overflow-y-auto bg-noir-950 p-4 md:p-8 scroll-elegant">
@@ -130,7 +134,7 @@ const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
         {/* Header Section */}
         <div className="flex justify-between items-center animate-fade-up">
           <div>
-            <h1 className="font-display text-3xl font-bold text-noir-50">面試分析報告</h1>
+            <h1 className="font-display text-3xl font-bold text-noir-50">四級能力報告</h1>
             <p className="text-noir-500 mt-1">{report.candidateName} — {report.jobTitle} ({new Date(report.timestamp).toLocaleDateString()})</p>
           </div>
           <button onClick={onBack} className="flex items-center gap-2 text-noir-400 hover:text-amber-400 transition-colors duration-300 glass-light px-4 py-2 rounded-lg text-sm">
@@ -161,16 +165,11 @@ const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
                             ) : (
                                 <div className="text-noir-600">{videoError || '影片載入中...'}</div>
                             )}
-
-                            {/* Emotion Sync HUD */}
-                            {currentSnapshot && (
-                                <div className="absolute top-4 right-4 glass text-white p-3 rounded-xl max-w-[200px] z-20 pointer-events-none animate-fade-up">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <ScanFace size={14} className="text-amber-400" />
-                                        <span className="text-xs font-bold uppercase tracking-wider text-amber-400/80">AI 即時偵測</span>
-                                    </div>
-                                    <div className="text-lg font-bold text-noir-100 mb-1">{currentSnapshot.expression}</div>
-                                    <div className="text-xs text-noir-400 leading-tight">{currentSnapshot.feedback}</div>
+                            {activeIndex >= 0 && report.fullTranscript[activeIndex] && (
+                                <div className="absolute bottom-14 left-4 right-4 z-10 text-center pointer-events-none">
+                                    <span className="inline-block max-w-full px-3 py-1.5 rounded bg-black/85 text-white text-sm md:text-base leading-relaxed break-words">
+                                        {report.fullTranscript[activeIndex].text}
+                                    </span>
                                 </div>
                             )}
                         </div>
@@ -197,7 +196,7 @@ const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
                                 <div
                                     key={idx}
                                     id={`transcript-item-${idx}`}
-                                    onClick={() => jumpToTime(item.relativeTime)}
+                                    onClick={() => jumpToTime(item.relativeTime, item.itemId)}
                                     className={`p-3 rounded-lg cursor-pointer transition-all duration-300 border ${
                                         isActive
                                         ? 'bg-amber-500/5 border-amber-500/20 shadow-sm'
@@ -230,149 +229,86 @@ const ReportView: React.FC<ReportViewProps> = ({ report, onBack }) => {
             </div>
         </div>
 
-        {/* Top Summary Card */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-up animate-fade-up-delay-2">
-          <div className="col-span-1 glass-light p-8 rounded-2xl flex flex-col items-center justify-center">
-            <div className="text-xs text-noir-500 mb-3 tracking-widest uppercase">綜合評分</div>
-            <div className="text-6xl font-display font-bold text-amber-400">{report.overallScore}</div>
-            <div className={`mt-4 px-4 py-1.5 rounded-full border text-sm font-bold ${getRecommendationColor(report.hiringRecommendation)}`}>
-              {getRecommendationText(report.hiringRecommendation)}
-            </div>
-          </div>
+        <section className="glass-light p-6 md:p-8 rounded-2xl animate-fade-up animate-fade-up-delay-2" aria-labelledby="practice-summary">
+          <h2 id="practice-summary" className="font-display text-xl font-bold text-noir-100 mb-3">本次練習摘要</h2>
+          <p className="text-noir-300 leading-relaxed">{assessment.summary}</p>
+        </section>
 
-          <div className="col-span-2 glass-light p-8 rounded-2xl">
-             <h3 className="font-display text-lg font-bold text-noir-100 mb-3">面試官總結</h3>
-             <p className="text-noir-400 leading-relaxed">{report.hiringReason}</p>
+        <section className="glass-light p-6 rounded-2xl space-y-3" aria-labelledby="technical-quality">
+          <h2 id="technical-quality" className="font-display text-lg font-bold text-noir-100">錄音與逐字稿品質提醒</h2>
+          <p className="text-sm text-noir-300">{technicalQualityLabels[assessment.technicalQuality.status]}</p>
+          <p className="text-sm text-noir-500">疑似技術或轉錄干擾僅作資料品質提醒，不代表能力不足，也不影響能力等級。</p>
+          {assessment.technicalQuality.notes.length > 0 && (
+            <ul className="list-disc pl-5 text-sm text-noir-400 space-y-1">
+              {assessment.technicalQuality.notes.map((note, index) => <li key={index}>{note}</li>)}
+            </ul>
+          )}
+          {assessment.technicalQuality.affectedTranscriptRefs.length > 0 && renderEvidence(assessment.technicalQuality.affectedTranscriptRefs)}
+        </section>
 
-             <div className="mt-6 grid grid-cols-2 gap-6">
+        <section aria-label="四項能力評測" className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {dimensionOrder.map(code => {
+            const dimension = assessment.dimensions.find(item => item.code === code)!;
+            return (
+              <article key={code} className="glass-light p-6 rounded-2xl space-y-5" aria-labelledby={`dimension-${code}`}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <h2 id={`dimension-${code}`} className="font-display text-lg font-bold text-noir-100">{dimensionLabels[code]}</h2>
+                  {dimension.status === 'NOT_ASSESSABLE' ? (
+                    <span className="text-sm text-noir-400">無法判定</span>
+                  ) : dimension.level && (
+                    <span className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-full px-3 py-1">{levelLabels[dimension.level]}</span>
+                  )}
+                </div>
+                <p className="text-sm text-noir-400">證據充分度：{sufficiencyLabels[dimension.evidenceSufficiency]}</p>
                 <div>
-                   <h4 className="text-xs font-bold text-emerald-400 mb-3 flex items-center gap-1 tracking-widest uppercase"><CheckCircle size={13}/> 優勢</h4>
-                   <ul className="space-y-1.5">
-                     {report.strengths.map((s, i) => <li key={i} className="text-sm text-noir-400 flex gap-2"><span className="text-emerald-500/50 mt-1.5">&#8226;</span> {s}</li>)}
-                   </ul>
+                  <h3 className="text-sm font-bold text-noir-200 mb-2">判定證據</h3>
+                  {renderEvidence(dimension.evidence)}
                 </div>
                 <div>
-                   <h4 className="text-xs font-bold text-red-400 mb-3 flex items-center gap-1 tracking-widest uppercase"><AlertTriangle size={13}/> 待改進</h4>
-                   <ul className="space-y-1.5">
-                     {report.weaknesses.map((w, i) => <li key={i} className="text-sm text-noir-400 flex gap-2"><span className="text-red-500/50 mt-1.5">&#8226;</span> {w}</li>)}
-                   </ul>
+                  <h3 className="text-sm font-bold text-noir-200 mb-2">缺少內容</h3>
+                  {dimension.missingEvidence.length ? (
+                    <ul className="list-disc pl-5 text-sm text-noir-400 space-y-1">
+                      {dimension.missingEvidence.map((item, index) => <li key={index}>{item}</li>)}
+                    </ul>
+                  ) : <p className="text-sm text-noir-500">本次未列出需補充的內容。</p>}
                 </div>
-             </div>
-          </div>
-        </div>
+                <div>
+                  <h3 className="text-sm font-bold text-amber-400 mb-2">下一步行動</h3>
+                  {dimension.nextActions.length ? (
+                    <ul className="list-disc pl-5 text-sm text-noir-300 space-y-1">
+                      {dimension.nextActions.map((item, index) => <li key={index}>{item}</li>)}
+                    </ul>
+                  ) : <p className="text-sm text-noir-500">本次未列出其他行動。</p>}
+                </div>
+              </article>
+            );
+          })}
+        </section>
 
-        {/* Detailed Analysis & Chart */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-up animate-fade-up-delay-3">
-          {/* Radar Chart */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="glass-light p-6 rounded-2xl min-h-[300px]">
-              <h3 className="font-display text-lg font-bold text-noir-100 mb-4 text-center">能力維度分析</h3>
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart cx="50%" cy="50%" outerRadius="80%" data={chartData}>
-                    <PolarGrid stroke="rgba(196, 154, 61, 0.1)" />
-                    <PolarAngleAxis dataKey="subject" tick={{ fill: '#8a7f6e', fontSize: 11 }} />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} tickLine={false} />
-                    <Radar name="Candidate" dataKey="A" stroke="#d4a857" fill="#d4a857" fillOpacity={0.15} strokeWidth={2} />
-                  </RadarChart>
-                </ResponsiveContainer>
+        <section className="space-y-4" aria-labelledby="question-analysis">
+          <h2 id="question-analysis" className="font-display text-xl font-bold text-noir-100">問答詳細分析</h2>
+          {assessment.questionAnalyses.map((qa, index) => (
+            <article key={index} className="glass-light p-6 rounded-2xl space-y-4">
+              <h3 className="font-bold text-noir-200 text-lg"><span className="text-amber-400 font-mono text-sm mr-2">Q{index + 1}</span>{qa.question}</h3>
+              <div>
+                <h4 className="text-sm font-bold text-noir-200 mb-2">您的回答摘要</h4>
+                <p className="text-noir-400 text-sm leading-relaxed">{qa.answerSummary}</p>
               </div>
-            </div>
-
-            <div className="bg-amber-500/5 border border-amber-500/10 p-6 rounded-2xl">
-                <h4 className="text-xs font-bold text-amber-400 mb-3 tracking-widest uppercase">整體改進建議</h4>
-                <p className="text-sm text-noir-400 leading-relaxed">{report.improvementPlan}</p>
-            </div>
-          </div>
-
-          {/* Right Column: Q&A + Non-Verbal */}
-          <div className="lg:col-span-2 space-y-8">
-
-             {/* Non-Verbal Analysis Section */}
-             {report.nonVerbalAnalysis && (
-               <div className="glass-light p-8 rounded-2xl">
-                  <div className="flex items-center gap-3 mb-6">
-                    <ScanFace className="text-amber-400" size={22} />
-                    <h3 className="font-display text-xl font-bold text-noir-100">非語言溝通分析</h3>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                     <div className="bg-noir-900/30 p-4 rounded-xl text-center border border-noir-800/30">
-                        <div className="text-xs text-noir-500 uppercase tracking-wider mb-1">平均表情狀態</div>
-                        <div className="text-lg font-bold text-noir-200">{report.nonVerbalAnalysis.averageExpression}</div>
-                     </div>
-                     <div className="bg-noir-900/30 p-4 rounded-xl text-center border border-noir-800/30">
-                        <div className="text-xs text-noir-500 uppercase tracking-wider mb-1">儀態評分</div>
-                        <div className="text-lg font-bold text-amber-400">{report.nonVerbalAnalysis.bodyLanguageScore}<span className="text-noir-600 text-sm">/100</span></div>
-                     </div>
-                     <div className="bg-noir-900/30 p-4 rounded-xl flex flex-col justify-center border border-noir-800/30">
-                         <div className="text-xs text-noir-500 uppercase tracking-wider mb-1 text-center">AI 觀察重點</div>
-                         <div className="text-xs text-noir-400 text-center italic">"{report.nonVerbalAnalysis.observations[0]}"</div>
-                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                       <h4 className="text-xs font-bold text-noir-400 mb-3 tracking-widest uppercase">觀察紀錄</h4>
-                       <ul className="space-y-2">
-                         {report.nonVerbalAnalysis.observations.map((obs, i) => (
-                           <li key={i} className="flex gap-2 text-sm text-noir-400">
-                             <div className="min-w-[3px] h-3 bg-amber-500/30 rounded-full mt-1.5"></div>
-                             {obs}
-                           </li>
-                         ))}
-                       </ul>
-                    </div>
-                    <div>
-                       <h4 className="text-xs font-bold text-noir-400 mb-3 tracking-widest uppercase">改善建議</h4>
-                       <ul className="space-y-2">
-                         {report.nonVerbalAnalysis.tips.map((tip, i) => (
-                           <li key={i} className="flex gap-2 text-sm text-noir-400">
-                             <Smile size={13} className="text-amber-500/50 mt-0.5 shrink-0" />
-                             {tip}
-                           </li>
-                         ))}
-                       </ul>
-                    </div>
-                  </div>
-               </div>
-             )}
-
-             {/* Q&A List */}
-             <div className="space-y-4">
-               <h3 className="font-display text-xl font-bold text-noir-100">問答詳細分析</h3>
-               {report.questionAnalysis.map((qa, idx) => (
-                 <div key={idx} className="glass-light p-6 rounded-2xl">
-                   <div className="flex justify-between items-start mb-4">
-                     <h4 className="font-bold text-noir-200 text-lg flex-1">
-                       <span className="text-amber-400 font-mono text-sm mr-2">Q{idx + 1}</span>
-                       {qa.question}
-                     </h4>
-                     <span className={`px-3 py-1 rounded-lg font-mono font-bold text-sm ${qa.score >= 80 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : (qa.score >= 60 ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20')}`}>
-                       {qa.score}
-                     </span>
-                   </div>
-
-                   <div className="mb-4">
-                     <div className="text-xs font-bold text-noir-600 uppercase tracking-widest mb-2">您的回答摘要</div>
-                     <p className="text-noir-400 bg-noir-900/30 p-3 rounded-lg text-sm border border-noir-800/30">{qa.answerSummary}</p>
-                   </div>
-
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <div className="text-xs font-bold text-noir-600 uppercase tracking-widest mb-2">AI 點評</div>
-                        <p className="text-sm text-noir-400">{qa.feedback}</p>
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-noir-600 uppercase tracking-widest mb-2">建議回答方向</div>
-                        <p className="text-sm text-amber-400/80 italic">{qa.suggestedAnswer}</p>
-                      </div>
-                   </div>
-                 </div>
-               ))}
-            </div>
-          </div>
-        </div>
+              <div className="flex flex-wrap gap-2" aria-label="職務能力標籤">
+                {qa.competencyTags.map((tag, tagIndex) => <span key={tagIndex} className="text-xs text-noir-300 bg-noir-800/50 px-3 py-1 rounded-full">{tag}</span>)}
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-noir-200 mb-2">回答證據</h4>
+                {renderEvidence(qa.evidence)}
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-amber-400 mb-2">下一步行動</h4>
+                <p className="text-sm text-noir-300">{qa.nextAction}</p>
+              </div>
+            </article>
+          ))}
+          {assessment.questionAnalyses.length === 0 && <p className="text-sm text-noir-500">本次沒有可分析的完整問答。</p>}
+        </section>
       </div>
     </div>
   );

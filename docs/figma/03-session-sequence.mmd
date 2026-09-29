@@ -1,0 +1,44 @@
+sequenceDiagram
+    participant U as 使用者（瀏覽器）
+    participant LS as LiveSession.tsx
+    participant GM as Gemini 2.5 Flash Live API
+    participant BE as Express Backend
+    participant CL as Claude Sonnet 4.5
+    participant DB as PostgreSQL / 檔案系統
+
+    U->>LS: 開始面試（職缺 JD + Persona + 履歷）
+    LS->>GM: WebSocket 連線 + System Prompt
+
+    rect rgb(240, 253, 244)
+        Note over U,GM: 面試進行中（N 輪問答）
+        U->>LS: 說話（麥克風擷取）
+        LS->>GM: 音訊串流 PCM 16kHz
+        GM-->>LS: AI 回應 PCM 24kHz + 逐字稿
+        LS->>U: 播放 AI 語音
+        LS->>LS: 記錄 TranscriptItem[] + NonVerbalSnapshot[]
+    end
+
+    U->>LS: 點擊「結束面試」
+    LS->>GM: 關閉 WebSocket 連線
+
+    rect rgb(239, 246, 255)
+        Note over LS,DB: 報告生成流程
+        LS->>BE: POST /api/videos/upload（videoBlob WebM）
+        BE->>DB: 儲存影片至 server/uploads/
+        BE-->>LS: videoPath
+
+        LS->>BE: POST /api/analysis/generate-report
+        BE->>CL: Anthropic SDK（240+ 行 Prompt）
+        CL-->>BE: InterviewReport JSON
+        BE-->>LS: 完整分析結果
+
+        LS->>BE: POST /api/reports（report + videoPath）
+        BE->>DB: 儲存至 PostgreSQL
+        BE-->>LS: success
+    end
+
+    LS->>U: 導向 THANKS 頁面
+    U->>BE: GET /api/videos/token/:filename
+    BE-->>U: token（5 分鐘有效）
+    U->>BE: GET /api/videos/:filename?token=JWT
+    BE-->>U: 影片串流（HTTP 206 Range）

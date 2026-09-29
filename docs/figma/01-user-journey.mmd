@@ -1,0 +1,47 @@
+flowchart TD
+    START([▶ 開始]) --> LOGIN
+
+    subgraph AUTH ["🔐 認證系統"]
+        LOGIN["登入頁面\nLOGIN"] -->|輸入帳密| VALIDATE{JWT 驗證}
+        VALIDATE -->|失敗| LOGIN
+        LOGIN --> REGISTER["註冊頁面\nREGISTER"]
+        LOGIN --> FORGOT["忘記密碼\nFORGOT_PASSWORD"]
+        FORGOT --> RESET["發送重設信件"]
+        REGISTER -->|成功| VALIDATE
+    end
+
+    VALIDATE -->|成功| ROLE{角色判斷}
+
+    ROLE -->|CANDIDATE| CP["👤 求職者入口\nPORTAL"]
+    ROLE -->|ENTERPRISE| EP["🏢 企業入口\nPORTAL"]
+    ROLE -->|ADMIN| AP["⚙️ 管理員入口\nPORTAL"]
+
+    subgraph CANDIDATE_FLOW ["求職者流程"]
+        CP --> JOBLIST["瀏覽職缺列表\nGET /api/jobs"]
+        JOBLIST --> SELECTJOB["選擇職缺\n確認 Persona / 語音"]
+        SELECTJOB --> SESSION["🎙️ 即時面試\nSESSION"]
+        SESSION --> ENDSESSION["結束面試"]
+        ENDSESSION --> PROC["⏳ 報告處理\nPROCESSING"]
+        PROC --> THANKS["✅ 完成\nTHANKS"]
+        THANKS --> CP
+        CP --> MYREPORTS["查看自己的報告"]
+        MYREPORTS --> REPORTDETAIL_C["報告詳情\n+ 影片回放"]
+    end
+
+    subgraph ENTERPRISE_FLOW ["企業流程"]
+        EP --> JOBMGMT["管理職缺\nCRUD /api/jobs"]
+        EP --> VIEWREPORTS["查看應徵者報告\nGET /api/reports"]
+        VIEWREPORTS --> REPORTDETAIL_E["報告詳情\n+ 影片回放"]
+    end
+
+    subgraph ADMIN_FLOW ["管理員流程"]
+        AP --> SWITCH["切換 Candidate ⟷ Enterprise 模式"]
+        AP --> ALLREPORTS["查看所有報告"]
+        AP --> VIDEOMGMT["影片管理\nDELETE /api/videos"]
+        ALLREPORTS --> REPORTDETAIL_A["報告詳情\n+ 影片回放"]
+    end
+
+    style AUTH fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a5f
+    style CANDIDATE_FLOW fill:#f0fdf4,stroke:#22c55e,stroke-width:2px,color:#14532d
+    style ENTERPRISE_FLOW fill:#faf5ff,stroke:#a855f7,stroke-width:2px,color:#4a1d96
+    style ADMIN_FLOW fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#78350f

@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Briefcase, Calendar, FileText, Search, User } from 'lucide-react';
 import { getMe, updateMyProfile } from '../services/authService';
-import { deleteVideo } from '../services/db';
 import { getJobs } from '../services/jobService';
 import { deleteReport, getAllReports } from '../services/storageService';
 import { InterviewReport, JobProfile } from '../types';
@@ -11,6 +10,69 @@ interface EnterpriseWorkspaceProps {
   onViewReport: (report: InterviewReport) => void;
   mode?: 'admin' | 'enterprise';
 }
+
+export const EnterpriseReportsPanel = ({ reports, reportSearch, setReportSearch, onViewReport, handleDeleteReport }: {
+  reports: InterviewReport[];
+  reportSearch: string;
+  setReportSearch: (value: string) => void;
+  onViewReport: (report: InterviewReport) => void;
+  handleDeleteReport: (report: InterviewReport, event: React.MouseEvent) => void;
+}) => {
+  const filteredReports = reports.filter(report =>
+    report.candidateName.toLowerCase().includes(reportSearch.toLowerCase()) ||
+    report.jobTitle.toLowerCase().includes(reportSearch.toLowerCase())
+  );
+  return (
+    <div>
+      <div className="relative mb-5">
+        <Search size={16} className="absolute left-3 top-3.5 text-noir-600" />
+        <input
+          value={reportSearch}
+          onChange={(e) => setReportSearch(e.target.value)}
+          placeholder="搜尋候選人或職缺..."
+          className="w-full pl-10 pr-3 py-3 rounded-xl bg-noir-900/50 border border-noir-700/40 text-noir-100 outline-none"
+        />
+      </div>
+      <div className="space-y-3">
+        {filteredReports.map((report) => (
+          <div
+            key={report.id}
+            onClick={() => onViewReport(report)}
+            className="p-4 rounded-xl border border-noir-800/40 bg-noir-900/20 cursor-pointer hover:border-amber-500/20 transition-colors"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 text-noir-200 font-semibold">
+                  <User size={14} className="text-noir-500" />
+                  {report.candidateName}
+                </div>
+                <div className="text-noir-500 text-sm mt-1">{report.jobTitle}</div>
+                <div className="text-noir-600 text-xs mt-1 flex items-center gap-1">
+                  <Calendar size={12} />
+                  {new Date(report.timestamp).toLocaleDateString()}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-noir-300 text-sm font-bold">四級能力報告</div>
+                <button
+                  onClick={(e) => handleDeleteReport(report, e)}
+                  className="text-xs text-red-400 mt-2"
+                >
+                  刪除紀錄
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {filteredReports.length === 0 && (
+          <div className="text-noir-600 text-sm flex items-center gap-2">
+            <FileText size={14} /> 目前沒有可查看的面試紀錄
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const EnterpriseWorkspace: React.FC<EnterpriseWorkspaceProps> = ({ onViewReport, mode = 'enterprise' }) => {
   const [jobs, setJobs] = useState<JobProfile[]>([]);
@@ -53,28 +115,15 @@ const EnterpriseWorkspace: React.FC<EnterpriseWorkspaceProps> = ({ onViewReport,
     [jobs, jobSearch]
   );
 
-  const filteredReports = useMemo(
-    () =>
-      reports.filter(
-        (r) =>
-          r.candidateName.toLowerCase().includes(reportSearch.toLowerCase()) ||
-          r.jobTitle.toLowerCase().includes(reportSearch.toLowerCase())
-      ),
-    [reports, reportSearch]
-  );
-
   const handleDeleteReport = async (report: InterviewReport, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm('確定刪除此面試紀錄？')) return;
-    await deleteReport(report.id);
-    if (report.videoPath) {
-      try {
-        await deleteVideo(report.videoPath);
-      } catch {
-        // ignore video delete errors
-      }
+    try {
+      await deleteReport(report.id);
+      await loadData();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '刪除面試紀錄失敗');
     }
-    await loadData();
   };
 
   const saveCompanyNameSetting = async () => {
@@ -161,54 +210,7 @@ const EnterpriseWorkspace: React.FC<EnterpriseWorkspaceProps> = ({ onViewReport,
               canManageAll={mode === 'admin'}
             />
           ) : (
-            <div>
-              <div className="relative mb-5">
-                <Search size={16} className="absolute left-3 top-3.5 text-noir-600" />
-                <input
-                  value={reportSearch}
-                  onChange={(e) => setReportSearch(e.target.value)}
-                  placeholder="搜尋候選人或職缺..."
-                  className="w-full pl-10 pr-3 py-3 rounded-xl bg-noir-900/50 border border-noir-700/40 text-noir-100 outline-none"
-                />
-              </div>
-              <div className="space-y-3">
-                {filteredReports.map((report) => (
-                  <div
-                    key={report.id}
-                    onClick={() => onViewReport(report)}
-                    className="p-4 rounded-xl border border-noir-800/40 bg-noir-900/20 cursor-pointer hover:border-amber-500/20 transition-colors"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2 text-noir-200 font-semibold">
-                          <User size={14} className="text-noir-500" />
-                          {report.candidateName}
-                        </div>
-                        <div className="text-noir-500 text-sm mt-1">{report.jobTitle}</div>
-                        <div className="text-noir-600 text-xs mt-1 flex items-center gap-1">
-                          <Calendar size={12} />
-                          {new Date(report.timestamp).toLocaleDateString()}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-amber-400 font-bold">Score {report.overallScore}</div>
-                        <button
-                          onClick={(e) => handleDeleteReport(report, e)}
-                          className="text-xs text-red-400 mt-2"
-                        >
-                          刪除紀錄
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {filteredReports.length === 0 && (
-                  <div className="text-noir-600 text-sm flex items-center gap-2">
-                    <FileText size={14} /> 目前沒有可查看的面試紀錄
-                  </div>
-                )}
-              </div>
-            </div>
+            <EnterpriseReportsPanel reports={reports} reportSearch={reportSearch} setReportSearch={setReportSearch} onViewReport={onViewReport} handleDeleteReport={handleDeleteReport} />
           )}
         </div>
       </div>

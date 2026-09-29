@@ -36,7 +36,7 @@ const SetupForm: React.FC<SetupFormProps> = ({ onStart }) => {
       mandatoryQuestions,
       candidateName: candidateName || '候選人',
       companyName: 'Demo Corp',
-      voiceName: 'Kore'
+      voiceName: 'marin'
     });
   };
 

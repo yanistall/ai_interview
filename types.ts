@@ -22,7 +22,7 @@ export interface JobProfile {
   title: string;
   description: string;
   persona: Persona;
-  voiceName: string; // 'Puck', 'Charon', 'Kore', 'Fenrir', 'Aoede'
+  voiceName: string;
   questions: string[];
   createdAt: number;
 }
@@ -49,29 +49,51 @@ export interface TranscriptItem {
   text: string;
   timestamp: number;
   relativeTime: number; // Seconds from start of recording
+  itemId?: string;
 }
 
-export interface NonVerbalSnapshot {
-  timestamp: number;
-  relativeTime: number; // Seconds from start of recording
-  expression: string;
-  feedback: string;
+export type AssessmentLevel = 'DEVELOPING' | 'BASIC' | 'PROFICIENT' | 'DISTINCT_STRENGTH';
+export type AssessmentStatus = 'ASSESSED' | 'NOT_ASSESSABLE';
+export type EvidenceSufficiency = 'SUFFICIENT' | 'PARTIAL' | 'INSUFFICIENT';
+export type TechnicalQualityStatus = 'CLEAR' | 'MINOR_ISSUES' | 'PARTIAL' | 'SEVERE';
+export type DimensionCode =
+  | 'ANSWER_EVIDENCE'
+  | 'CONTENT_CLARITY'
+  | 'JOB_COMPETENCY_MATCH'
+  | 'PROFESSIONAL_DEPTH';
+
+export interface EvidenceReference {
+  transcriptItemId?: string;
+  relativeTime: number;
+  quote: string;
+  rationale: string;
 }
 
-export interface QuestionAnalysis {
-  question: string;
-  answerSummary: string;
-  score: number; // 1-100
-  feedback: string;
-  suggestedAnswer: string;
+export interface CompetencyAssessment {
+  code: DimensionCode;
+  status: AssessmentStatus;
+  level: AssessmentLevel | null;
+  evidenceSufficiency: EvidenceSufficiency;
+  evidence: EvidenceReference[];
+  missingEvidence: string[];
+  nextActions: string[];
 }
 
-export interface DimensionScores {
-  answerQuality: number;       // 回答品質 0-100
-  communicationSkill: number;  // 溝通流暢 0-100
-  jobFit: number;              // 職位匹配 0-100
-  professionalDepth: number;   // 專業深度 0-100
-  nonVerbalPresence: number;   // 非語言表現 0-100
+export interface CandidateAssessmentV1 {
+  summary: string;
+  dimensions: CompetencyAssessment[];
+  questionAnalyses: Array<{
+    question: string;
+    answerSummary: string;
+    competencyTags: string[];
+    evidence: EvidenceReference[];
+    nextAction: string;
+  }>;
+  technicalQuality: {
+    status: TechnicalQualityStatus;
+    notes: string[];
+    affectedTranscriptRefs: EvidenceReference[];
+  };
 }
 
 export interface InterviewReport {
@@ -82,25 +104,11 @@ export interface InterviewReport {
   recordingId?: string; // Legacy: ID referencing the video in IndexedDB
   videoPath?: string;   // Server-side video file path
 
-  // Raw Data for Playback Sync
+  // Raw data for playback sync
   fullTranscript: TranscriptItem[];
-  nonVerbalLog: NonVerbalSnapshot[];
 
-  // AI Analysis
-  overallScore: number;
-  hiringRecommendation: 'HIRE' | 'CONSIDER' | 'NO_HIRE';
-  hiringReason: string;
-  strengths: string[];
-  weaknesses: string[];
-  improvementPlan: string;
-  dimensionScores: DimensionScores;
-  questionAnalysis: QuestionAnalysis[];
-  nonVerbalAnalysis: {
-    averageExpression: string;
-    bodyLanguageScore: number; // 0-100
-    observations: string[];
-    tips: string[];
-  };
+  assessmentVersion: 'candidate-bplus-v1';
+  assessment: CandidateAssessmentV1;
 }
 
 // Preset questions pool
@@ -114,10 +122,10 @@ export const PRESET_QUESTIONS = [
   "您對未來三到五年的職涯規劃是什麼？"
 ];
 
-// Voices available in Gemini Live
+// Voices available in GPT Realtime
 export const AVAILABLE_VOICES = [
-  { id: 'Charon', name: '男聲', gender: 'Male' },
-  { id: 'Fenrir', name: '女聲', gender: 'Female' },
+  { id: 'cedar', name: '男聲', gender: 'Male' },
+  { id: 'marin', name: '女聲', gender: 'Female' },
 ];
 
 export const DEFAULT_MANDATORY_QUESTIONS = [

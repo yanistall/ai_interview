@@ -1,9 +1,8 @@
-import { InterviewReport, TranscriptItem, NonVerbalSnapshot } from '../types';
+import { InterviewReport, TranscriptItem } from '../types';
 import { apiFetch } from './api';
 
 export const generateInterviewReport = async (
   transcript: TranscriptItem[],
-  nonVerbalSnapshots: NonVerbalSnapshot[],
   jobTitle: string,
   candidateName: string,
   jobDescription: string
@@ -12,7 +11,6 @@ export const generateInterviewReport = async (
     method: 'POST',
     body: JSON.stringify({
       transcript,
-      nonVerbalSnapshots,
       jobTitle,
       candidateName,
       jobDescription,
@@ -30,5 +28,5 @@ export const generateInterviewReport = async (
     ...result,
     id: result.id || crypto.randomUUID(),
     timestamp: result.timestamp ? new Date(result.timestamp).getTime() : Date.now(),
-  } as InterviewReport;
+  };
 };

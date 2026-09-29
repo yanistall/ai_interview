@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Briefcase, FileText, History, Search, Upload, User } from 'lucide-react';
 import { InterviewConfig, InterviewReport, JobProfile } from '../types';
-import { getMe, updateMyProfile } from '../services/authService';
+import { closeMyAccount, eraseMyData, getMe, updateMyProfile } from '../services/authService';
 import { getJobs } from '../services/jobService';
-import { getAllReports } from '../services/storageService';
+import { deleteReport, getAllReports } from '../services/storageService';
 
 interface ResumeData {
   fileName: string;
@@ -20,18 +20,55 @@ interface CandidateWorkspaceProps {
   userName: string;
   onStartInterview: (config: InterviewConfig) => void;
   onViewReport: (report: InterviewReport) => void;
+  onAccountDeleted?: () => void;
+  accountMode?: 'candidate' | 'admin';
 }
 
 const CandidateWorkspace: React.FC<CandidateWorkspaceProps> = ({
   userName,
   onStartInterview,
   onViewReport,
+  onAccountDeleted,
+  accountMode = 'candidate',
 }) => {
   const [jobs, setJobs] = useState<JobProfile[]>([]);
   const [reports, setReports] = useState<InterviewReport[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [profile, setProfile] = useState<CandidateProfile>({ displayName: userName });
   const [isSaving, setIsSaving] = useState(false);
+  const [deletionPassword, setDeletionPassword] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const removeReport = async (report: InterviewReport) => {
+    if (!confirm(`確定刪除「${report.jobTitle}」面試紀錄與影片？`)) return;
+    try {
+      await deleteReport(report.id);
+      setReports((current) => current.filter((item) => item.id !== report.id));
+      alert('面試紀錄與影片已刪除');
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '刪除失敗');
+    }
+  };
+
+  const removeAccount = async (mode: 'close' | 'erase') => {
+    if (!deletionPassword) { alert('請輸入目前密碼'); return; }
+    const message = mode === 'erase'
+      ? '確定立即永久刪除帳號、個人資料、所有面試紀錄與影片？此操作無法復原。'
+      : '確定註銷帳號？登入將立即停用，資料於 30 天後刪除。';
+    if (!confirm(message)) return;
+    setIsDeleting(true);
+    try {
+      if (mode === 'erase') await eraseMyData(deletionPassword);
+      else await closeMyAccount(deletionPassword);
+      setDeletionPassword('');
+      alert(mode === 'erase' ? '資料已刪除' : '帳號已註銷，資料將於 30 天後刪除');
+      onAccountDeleted?.();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '操作失敗');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -287,8 +324,9 @@ const CandidateWorkspace: React.FC<CandidateWorkspaceProps> = ({
                       onClick={() => onViewReport(r)}
                       className="text-left hover:text-amber-400 transition-colors"
                     >
-                      {new Date(r.timestamp).toLocaleDateString()}｜{r.jobTitle}｜分數 {r.overallScore}
+                      {new Date(r.timestamp).toLocaleDateString()}｜{r.jobTitle}｜四級能力報告
                     </button>
+                    <button onClick={() => removeReport(r)} className="ml-2 text-red-400 hover:text-red-300">刪除</button>
                   </li>
                 ))
               )}
@@ -299,6 +337,20 @@ const CandidateWorkspace: React.FC<CandidateWorkspaceProps> = ({
             <FileText size={14} />
             點擊歷史紀錄可查看完整報告與錄影
           </div>
+          {accountMode === 'candidate' && <div className="mt-8 border-t border-noir-700/50 pt-5">
+            <h3 className="mb-2 font-bold text-noir-200">帳號與資料刪除</h3>
+            <p className="mb-3 text-xs text-noir-400">註銷帳號後資料保留 30 天；也可申請立即刪除全部資料。</p>
+            <label className="block text-xs text-noir-400" htmlFor="deletion-password">確認目前密碼</label>
+            <input id="deletion-password" type="password" autoComplete="current-password" value={deletionPassword}
+              onChange={(event) => setDeletionPassword(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-noir-700/40 bg-noir-900/50 px-3 py-2 text-noir-100" />
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" disabled={isDeleting} onClick={() => removeAccount('close')}
+                className="rounded-lg border border-noir-600 px-3 py-2 text-xs text-noir-200 disabled:opacity-50">註銷帳號</button>
+              <button type="button" disabled={isDeleting} onClick={() => removeAccount('erase')}
+                className="rounded-lg border border-red-500/40 px-3 py-2 text-xs text-red-300 disabled:opacity-50">立即刪除全部資料</button>
+            </div>
+          </div>}
         </div>
       </div>
     </div>

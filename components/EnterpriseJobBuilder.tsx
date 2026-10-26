@@ -134,10 +134,9 @@ const EnterpriseJobBuilder: React.FC<EnterpriseJobBuilderProps> = ({ onBack }) =
                   className="w-full bg-noir-900/50 border border-noir-700/50 rounded-lg p-3.5 outline-none text-noir-100 transition-all duration-300 input-noir focus:border-amber-500/30"
                   value={persona} onChange={e => setPersona(e.target.value as Persona)}
                 >
-                  <option value={Persona.FRIENDLY_HR}>親切 HR (輕鬆、引導式)</option>
-                  <option value={Persona.STRICT_MANAGER}>嚴格經理 (高壓、追問細節)</option>
-                  <option value={Persona.TECHNICAL_LEAD}>技術主管 (專注專業能力)</option>
-                  <option value={Persona.EXECUTIVE}>公司高層 (關注宏觀願景)</option>
+                  <option value={Persona.FRIENDLY_HR}>引導式</option>
+                  <option value={Persona.STRICT_MANAGER}>嚴謹</option>
+                  <option value={Persona.TECHNICAL_LEAD}>專注專業能力</option>
                 </select>
              </div>
              <div>

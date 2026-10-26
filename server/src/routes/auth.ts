@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
 import prisma from '../db/client.js';
 import { env } from '../config/env.js';
 import { authenticate } from '../middleware/auth.js';
@@ -88,77 +87,15 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/auth/forgot-password
-router.post('/forgot-password', async (req: Request, res: Response) => {
-  try {
-    const { email } = req.body;
+// Self-service resets stay unavailable until a private delivery channel exists.
+// Disable redemption too, so tokens exposed by older versions cannot be used.
+const passwordResetUnavailable = (_req: Request, res: Response): void => {
+  res.set('Cache-Control', 'no-store');
+  res.status(503).json({ error: '目前暫停自助密碼重設，請聯絡系統管理員。' });
+};
 
-    if (!email) {
-      res.status(400).json({ error: '請提供 email' });
-      return;
-    }
-
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      // Don't reveal whether user exists
-      res.json({ message: '如果此 email 已註冊，將會收到重設密碼的指示' });
-      return;
-    }
-
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExp = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { resetToken, resetTokenExp },
-    });
-
-    // In production, send email with resetToken
-    // For now, return it directly (development only)
-    res.json({
-      message: '如果此 email 已註冊，將會收到重設密碼的指示',
-      resetToken, // Remove in production
-    });
-  } catch (error) {
-    console.error('Forgot password error:', error);
-    res.status(500).json({ error: '處理失敗' });
-  }
-});
-
-// POST /api/auth/reset-password
-router.post('/reset-password', async (req: Request, res: Response) => {
-  try {
-    const { token, newPassword } = req.body;
-
-    if (!token || !newPassword) {
-      res.status(400).json({ error: '請提供 token 和 newPassword' });
-      return;
-    }
-
-    const user = await prisma.user.findFirst({
-      where: {
-        resetToken: token,
-        resetTokenExp: { gt: new Date() },
-      },
-    });
-
-    if (!user) {
-      res.status(400).json({ error: '重設 token 無效或已過期' });
-      return;
-    }
-
-    const passwordHash = await bcrypt.hash(newPassword, 12);
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { passwordHash, resetToken: null, resetTokenExp: null },
-    });
-
-    res.json({ message: '密碼重設成功' });
-  } catch (error) {
-    console.error('Reset password error:', error);
-    res.status(500).json({ error: '密碼重設失敗' });
-  }
-});
+router.post('/forgot-password', passwordResetUnavailable);
+router.post('/reset-password', passwordResetUnavailable);
 
 // GET /api/auth/me
 router.get('/me', authenticate, async (req: Request, res: Response) => {

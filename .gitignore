@@ -24,6 +24,10 @@ dist-ssr
 *.sw?
 *.env
 
+# Local agent settings (may contain machine-specific permissions or tokens)
+.claude/settings.local.json
+.superpowers/
+
 # Server
 server/uploads/*
 !server/uploads/.gitkeep
